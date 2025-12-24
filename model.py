@@ -93,6 +93,112 @@ def energy_relativistic_2nd_order(psi_nm1, psi_n, dt, c, m=0.0):
     )
 
 
+def run_driven_pulse(
+    N, steps, dt, c, m,
+    source_pos,
+    pulse_amp, pulse_t0, pulse_sigma,
+):
+    """Run a short Gaussian pulse drive then return (times, radii) detections.
+
+    This helper is used by Test 3 to measure the light-cone / front speed.
+    """
+    sy, sx = source_pos
+
+    psi_nm1 = np.zeros((N, N), dtype=np.complex128)
+    psi_n = np.zeros_like(psi_nm1)
+
+    times = []
+    radii = []
+
+    angles = np.linspace(0, 2 * np.pi, 96, endpoint=False)
+    max_r = min(sy, sx, N - 1 - sy, N - 1 - sx) - 2
+
+    for n in range(steps):
+        t = n * dt
+        lap = laplacian_iso(psi_n)
+
+        drive = np.zeros_like(psi_n)
+        amp = pulse_amp * np.exp(-0.5 * ((t - pulse_t0) / pulse_sigma) ** 2)
+        drive[sy, sx] = amp
+
+        psi_np1 = (
+            2 * psi_n - psi_nm1
+            + dt ** 2 * (c ** 2 * lap - m ** 2 * psi_n + drive)
+        )
+
+        psi_nm1, psi_n = psi_n, psi_np1
+
+        if n % 5 != 0:
+            continue
+
+        intensity = np.abs(psi_n) ** 2
+
+        radial_bins = [[] for _ in range(max_r)]
+        for ang in angles:
+            for r in range(1, max_r):
+                y = int(round(sy + r * np.sin(ang)))
+                x = int(round(sx + r * np.cos(ang)))
+                radial_bins[r].append(intensity[y, x])
+
+        radial_profile = np.array([np.mean(b) if b else 0.0 for b in radial_bins])
+
+        r_min = int(0.2 * max_r)
+        r_peak = r_min + np.argmax(radial_profile[r_min:])
+
+        if radial_profile[r_peak] > 1e-8:
+            radii.append(r_peak)
+            times.append(t)
+
+    return np.array(times), np.array(radii)
+
+
+def precompute_radial_reduction(shape, center):
+    """Precompute helpers to compute radial max profiles efficiently.
+
+    Used by Test 5's robust front detector.
+    """
+    h, w = shape
+    cy, cx = center
+    yy, xx = np.indices((h, w))
+    rr = np.sqrt((yy - cy) ** 2 + (xx - cx) ** 2)
+    r_int = rr.astype(np.int32).ravel()
+
+    order = np.argsort(r_int)
+    r_sorted = r_int[order]
+    starts = np.flatnonzero(np.r_[True, r_sorted[1:] != r_sorted[:-1]])
+    r_vals = r_sorted[starts]
+    max_r = int(r_vals.max())
+
+    return {
+        "order": order,
+        "starts": starts,
+        "r_vals": r_vals,
+        "max_r": max_r,
+    }
+
+
+def detect_front_outermost(intensity, radial_cache, *, rmin=5, threshold=1e-8):
+    """Return the *outermost* radius where intensity exceeds threshold.
+
+    Using the outermost radius avoids false negatives/oscillations near the
+    source and produces a monotonic front radius until periodic wrap-around.
+    """
+    flat_sorted = intensity.ravel()[radial_cache["order"]]
+    max_per_seg = np.maximum.reduceat(flat_sorted, radial_cache["starts"])
+
+    radial_max = np.zeros(radial_cache["max_r"] + 1, dtype=max_per_seg.dtype)
+    radial_max[radial_cache["r_vals"]] = max_per_seg
+
+    for r in range(
+        min(radial_cache["max_r"], intensity.shape[0] // 2 - 1),
+        rmin - 1,
+        -1,
+    ):
+        if radial_max[r] > threshold:
+            return r
+    return None
+
+
 def detect_from_buffer(buf, center=None, center_y=None):
     """Detect fringe counts from a buffer of recent complex frames.
 

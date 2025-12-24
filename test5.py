@@ -1,45 +1,9 @@
 import numpy as np
-from model import step_relativistic_2nd_order
-
-
-def _precompute_radial_reduction(shape, center):
-    """Precompute helpers to compute radial max profiles efficiently."""
-    h, w = shape
-    cy, cx = center
-    yy, xx = np.indices((h, w))
-    rr = np.sqrt((yy - cy) ** 2 + (xx - cx) ** 2)
-    r_int = rr.astype(np.int32).ravel()
-
-    order = np.argsort(r_int)
-    r_sorted = r_int[order]
-    starts = np.flatnonzero(np.r_[True, r_sorted[1:] != r_sorted[:-1]])
-    r_vals = r_sorted[starts]
-    max_r = int(r_vals.max())
-
-    return {
-        "order": order,
-        "starts": starts,
-        "r_vals": r_vals,
-        "max_r": max_r,
-    }
-
-
-def detect_front_outermost(intensity, radial_cache, *, rmin=5, threshold=1e-8):
-    """Return the *outermost* radius where intensity exceeds threshold.
-
-    Using the outermost radius avoids false negatives/oscillations near the
-    source and produces a monotonic front radius until periodic wrap-around.
-    """
-    flat_sorted = intensity.ravel()[radial_cache["order"]]
-    max_per_seg = np.maximum.reduceat(flat_sorted, radial_cache["starts"])
-
-    radial_max = np.zeros(radial_cache["max_r"] + 1, dtype=max_per_seg.dtype)
-    radial_max[radial_cache["r_vals"]] = max_per_seg
-
-    for r in range(min(radial_cache["max_r"], intensity.shape[0] // 2 - 1), rmin - 1, -1):
-        if radial_max[r] > threshold:
-            return r
-    return None
+from model import (
+    step_relativistic_2nd_order,
+    precompute_radial_reduction,
+    detect_front_outermost,
+)
 
 
 def test_c_scaling():
@@ -57,7 +21,7 @@ def test_c_scaling():
         psi_n[center[0], center[1]] = 1.0 + 0.0j
         psi_nm1 = psi_n.copy()  # zero initial velocity
 
-        radial_cache = _precompute_radial_reduction(psi_n.shape, center)
+        radial_cache = precompute_radial_reduction(psi_n.shape, center)
 
         fronts = []
         for t in range(steps):
