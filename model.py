@@ -421,6 +421,99 @@ def clock_rate_from_psi(
     )
 
 
+def gravity_source_from_psi(
+    psi,
+    *,
+    strength=1.0,
+    kind="curvature",
+    subtract_mean=True,
+):
+    """Compute a scalar source field for a dynamical clock_rate (gravity) field.
+
+    This is intentionally simple and local.
+    - kind="curvature": uses curvature_proxy(psi)
+    - kind="density":   uses |psi|^2
+
+    `subtract_mean=True` keeps the spatial mean of the source near zero so a
+    base clock rate (e.g. 1.0) remains the natural background.
+    """
+    if kind == "curvature":
+        s = curvature_proxy(psi).astype(float)
+    elif kind == "density":
+        s = energy_density(psi).astype(float)
+    else:
+        raise ValueError(f"Unknown kind={kind!r}; expected 'curvature' or 'density'.")
+
+    if subtract_mean:
+        s = s - float(np.mean(s))
+    return float(strength) * s
+
+
+def init_clock_rate_wave(
+    clock_rate0,
+    dt,
+    *,
+    c_g=1.0,
+    gamma=0.0,
+    mu=0.0,
+    base=1.0,
+    source0=None,
+    clip=(1e-3, 1e3),
+    laplacian=laplacian_iso,
+):
+    """Initialize leapfrog state for a dynamical clock_rate field.
+
+    Evolves a scalar field N(t,x) with:
+      N_tt = c_g^2 ∇^2 N + source - mu^2 (N-base) - gamma N_t
+
+    Returns N_prev for use in `step_clock_rate_wave`.
+    Assumes N_t(t=0)=0.
+    """
+    N0 = np.array(clock_rate0, dtype=float, copy=True)
+    src0 = 0.0 if source0 is None else np.asarray(source0, dtype=float)
+
+    accel0 = (c_g ** 2) * laplacian(N0) + src0 - (mu ** 2) * (N0 - float(base))
+    # With N_t(0)=0, leapfrog consistent initialization:
+    #   N(-dt) = N(0) - 0.5 dt^2 * N_tt(0)
+    N_prev = N0 - 0.5 * (dt ** 2) * accel0
+
+    if clip is not None:
+        lo, hi = clip
+        N0 = np.clip(N0, float(lo), float(hi))
+        N_prev = np.clip(N_prev, float(lo), float(hi))
+    return N_prev
+
+
+def step_clock_rate_wave(
+    clock_rate,
+    clock_rate_prev,
+    dt,
+    *,
+    c_g=1.0,
+    gamma=0.0,
+    mu=0.0,
+    base=1.0,
+    source=None,
+    clip=(1e-3, 1e3),
+    laplacian=laplacian_iso,
+):
+    """Advance the dynamical clock_rate (gravity) field by one leapfrog step."""
+    N = np.asarray(clock_rate, dtype=float)
+    N_prev = np.asarray(clock_rate_prev, dtype=float)
+    src = 0.0 if source is None else np.asarray(source, dtype=float)
+
+    # N_t ≈ (N - N_prev)/dt
+    N_t = (N - N_prev) / float(dt)
+    accel = (c_g ** 2) * laplacian(N) + src - (mu ** 2) * (N - float(base)) - float(gamma) * N_t
+
+    N_next = 2.0 * N - N_prev + (dt ** 2) * accel
+
+    if clip is not None:
+        lo, hi = clip
+        N_next = np.clip(N_next, float(lo), float(hi))
+    return N_next
+
+
 def hamiltonian_total(psi, *, omega0=0.0, kappa=1.0):
     """Total Hamiltonian proxy matching H = Σ (ω|ψ|^2 + κ Σ |ψ_i-ψ_j|^2)."""
     return float(np.sum(omega0 * energy_density(psi) + kappa * curvature_proxy(psi)))
