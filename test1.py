@@ -1,6 +1,6 @@
 import numpy as np
 from collections import deque
-from model import laplacian_iso, step_complex
+from model import laplacian_iso
 
 # ============================================================
 # TEST 1 — Single Source Isotropy (Driven, Complex, Relativistic)

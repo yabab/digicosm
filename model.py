@@ -21,22 +21,6 @@ def laplacian_iso(f):
     return (4/6) * (axial - 4 * f) + (1/6) * (diag - 4 * f)
 
 
-def step_complex(psi, dt, c):
-    """Unitary complex field update (simple Euler-like step used in tests)."""
-    return psi - 1j * dt * c * laplacian_iso(psi)
-
-
-def step(phi, pi, dt, c, m):
-    """Leapfrog (symplectic) step for real scalar field.
-
-    Updates `pi` by dt*(c^2 Laplacian(phi) - m^2 phi) then advances phi by dt*pi.
-    Returns updated (phi, pi).
-    """
-    pi += dt * (c**2 * laplacian_iso(phi) - m**2 * phi)
-    phi += dt * pi
-    return phi, pi
-
-
 def run_driven_relativistic_wave(
     psi_nm1, psi_n, steps, dt, c, m, omega, sources, *, avg_last=40, warmup_frac=0.5
 ):
@@ -71,6 +55,42 @@ def run_driven_relativistic_wave(
 
     avg = sum(buf) / len(buf)
     return avg, list(buf)
+
+
+def step_relativistic_2nd_order(psi_nm1, psi_n, dt, c, m=0.0, drive=None):
+    """Second-order-in-time relativistic update for a complex scalar field.
+
+    Implements:
+        psi^{n+1} = 2 psi^n - psi^{n-1} + dt^2 ( c^2 ∇^2_iso psi^n - m^2 psi^n + drive )
+
+    `drive` may be None or an array broadcastable to psi.
+    Returns (psi_n, psi_np1) suitable for `psi_nm1, psi_n = psi_n, psi_np1`.
+    """
+    lap = laplacian_iso(psi_n)
+    if drive is None:
+        drive_term = 0.0
+    else:
+        drive_term = drive
+    psi_np1 = 2 * psi_n - psi_nm1 + (dt ** 2) * (c ** 2 * lap - (m ** 2) * psi_n + drive_term)
+    return psi_n, psi_np1
+
+
+def energy_relativistic_2nd_order(psi_nm1, psi_n, dt, c, m=0.0):
+    """Discrete total energy proxy for the relativistic complex field.
+
+    Uses:
+      - time-derivative proxy: psi_dot ≈ (psi^n - psi^{n-1}) / dt
+      - gradient energy proxy: -Re(conj(psi) * ∇² psi)
+      - mass term: m^2 |psi|^2
+    """
+    psi_dot = (psi_n - psi_nm1) / dt
+    lap = laplacian_iso(psi_n)
+    grad_density = -np.real(np.conj(psi_n) * lap)
+    return float(
+        0.5 * np.sum(np.abs(psi_dot) ** 2)
+        + 0.5 * (c ** 2) * np.sum(grad_density)
+        + 0.5 * (m ** 2) * np.sum(np.abs(psi_n) ** 2)
+    )
 
 
 def detect_from_buffer(buf, center=None, center_y=None):

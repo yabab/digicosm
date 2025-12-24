@@ -1,5 +1,5 @@
 import numpy as np
-from model import laplacian_iso, run_driven_relativistic_wave, detect_from_buffer
+from model import run_driven_relativistic_wave, detect_from_buffer
 
 # ============================================================
 # TEST 2 — Two-Source Interference (CORRECT)

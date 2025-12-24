@@ -1,20 +1,25 @@
 import numpy as np
-from model import laplacian_iso, step
+from model import step_relativistic_2nd_order, energy_relativistic_2nd_order
 
 
 def test_energy_conservation():
     print("TEST 4: Energy conservation")
 
     N, steps, dt, c = 100, 2000, 0.02, 1.0
-    phi = np.zeros((N, N))
-    pi = np.zeros_like(phi)
-    phi[N//2-5, N//2-30] = 1.0
-    phi[N//2+5, N//2-30] = 1.0
+    m = 0.0
+
+    psi_nm1 = np.zeros((N, N), dtype=np.complex128)
+    psi_n = np.zeros_like(psi_nm1)
+
+    # Localized initial displacement (zero initial velocity => psi_nm1 == psi_n).
+    psi_n[N // 2 - 5, N // 2 - 30] = 1.0 + 0.0j
+    psi_n[N // 2 + 5, N // 2 - 30] = 1.0 + 0.0j
+    psi_nm1 = psi_n.copy()
 
     E = []
     for _ in range(steps):
-        phi, pi = step(phi, pi, dt, c, 0.0)
-        E.append(0.5*np.sum(pi**2) - 0.5*c**2*np.sum(phi*laplacian_iso(phi)))
+        psi_nm1, psi_n = step_relativistic_2nd_order(psi_nm1, psi_n, dt, c, m)
+        E.append(energy_relativistic_2nd_order(psi_nm1, psi_n, dt, c, m))
 
     drift = abs(E[-1] - E[0]) / abs(E[0]) if E[0] != 0 else float('inf')
     print(f"energy drift = {drift*100:.4f}%")

@@ -1,5 +1,5 @@
 import numpy as np
-from model import step
+from model import step_relativistic_2nd_order
 
 
 def _precompute_radial_reduction(shape, center):
@@ -50,18 +50,21 @@ def test_c_scaling():
         # Low-c runs need longer time to reach measurable radii because the
         # isotropic Laplacian stencil rescales the effective wave speed.
         N, steps, dt = 150, 900, 0.05
+        m = 0.0
         center = (N//2, N//2)
-        phi = np.zeros((N, N))
-        pi = np.zeros_like(phi)
-        phi[center[0], center[1]] = 1.0
+        psi_nm1 = np.zeros((N, N), dtype=np.complex128)
+        psi_n = np.zeros_like(psi_nm1)
+        psi_n[center[0], center[1]] = 1.0 + 0.0j
+        psi_nm1 = psi_n.copy()  # zero initial velocity
 
-        radial_cache = _precompute_radial_reduction(phi.shape, center)
+        radial_cache = _precompute_radial_reduction(psi_n.shape, center)
 
         fronts = []
         for t in range(steps):
-            phi, pi = step(phi, pi, dt, c, 0.0)
+            psi_nm1, psi_n = step_relativistic_2nd_order(psi_nm1, psi_n, dt, c, m)
             if t % 10 == 0:
-                r = detect_front_outermost(phi**2, radial_cache)
+                intensity = np.abs(psi_n) ** 2
+                r = detect_front_outermost(intensity, radial_cache)
                 if r is not None:
                     fronts.append((t * dt, r))
 
