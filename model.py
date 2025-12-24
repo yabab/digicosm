@@ -54,6 +54,44 @@ def init_phase_leapfrog(psi0, dt, omega, kappa, *, drive0=None, clock_rate=None,
     return v_half0
 
 
+def init_phase_leapfrog_backreacting(
+    psi0,
+    dt,
+    omega,
+    kappa,
+    *,
+    drive0=None,
+    base_clock_rate=1.0,
+    curvature_beta=0.0,
+    curvature_mode="exp",
+    curvature_clip=(1e-3, 1e3),
+    laplacian=laplacian_iso,
+):
+    """Initialize leapfrog for curvature-coupled time dilation.
+
+    The local clock_rate is computed from the initial field via curvature proxy.
+    """
+    if curvature_beta == 0.0:
+        clock_rate0 = float(base_clock_rate)
+    else:
+        clock_rate0 = clock_rate_from_psi(
+            psi0,
+            base=float(base_clock_rate),
+            beta=float(curvature_beta),
+            mode=curvature_mode,
+            clip=curvature_clip,
+        )
+    return init_phase_leapfrog(
+        psi0,
+        dt,
+        omega,
+        kappa,
+        drive0=drive0,
+        clock_rate=clock_rate0,
+        laplacian=laplacian,
+    )
+
+
 def step_phase_leapfrog(
     psi,
     v_half,
@@ -92,6 +130,83 @@ def step_phase_leapfrog(
     return psi_next, v_half_next
 
 
+def step_phase_leapfrog_backreacting(
+    psi,
+    v_half,
+    dt,
+    omega,
+    kappa,
+    *,
+    drive=None,
+    base_clock_rate=1.0,
+    curvature_beta=0.0,
+    curvature_mode="exp",
+    curvature_clip=(1e-3, 1e3),
+    laplacian=laplacian_iso,
+):
+    """Curvature-coupled step with a simple predictor/corrector for clock_rate.
+
+    This treats time dilation as a local lapse: dτ = dt * clock_rate(psi).
+    For stability and reduced bias, we estimate a midpoint clock_rate by:
+      rate_n  = rate(psi^n)
+      psi*    = step(psi^n; rate_n)
+      rate_*  = rate(psi*)
+      rate_mid = 0.5 * (rate_n + rate_*)
+      psi^{n+1} = step(psi^n; rate_mid)
+    """
+    if curvature_beta == 0.0:
+        rate_n = float(base_clock_rate)
+        return step_phase_leapfrog(
+            psi,
+            v_half,
+            dt,
+            omega,
+            kappa,
+            drive=drive,
+            clock_rate=rate_n,
+            laplacian=laplacian,
+        )
+
+    rate_n = clock_rate_from_psi(
+        psi,
+        base=float(base_clock_rate),
+        beta=float(curvature_beta),
+        mode=curvature_mode,
+        clip=curvature_clip,
+    )
+
+    psi_pred, v_half_pred = step_phase_leapfrog(
+        psi,
+        v_half,
+        dt,
+        omega,
+        kappa,
+        drive=drive,
+        clock_rate=rate_n,
+        laplacian=laplacian,
+    )
+
+    rate_pred = clock_rate_from_psi(
+        psi_pred,
+        base=float(base_clock_rate),
+        beta=float(curvature_beta),
+        mode=curvature_mode,
+        clip=curvature_clip,
+    )
+    rate_mid = 0.5 * (rate_n + rate_pred)
+
+    return step_phase_leapfrog(
+        psi,
+        v_half,
+        dt,
+        omega,
+        kappa,
+        drive=drive,
+        clock_rate=rate_mid,
+        laplacian=laplacian,
+    )
+
+
 def run_driven_phase_wave(
     psi0,
     steps,
@@ -103,6 +218,10 @@ def run_driven_phase_wave(
     sources=(),
     avg_last=40,
     warmup_frac=0.5,
+    base_clock_rate=1.0,
+    curvature_beta=0.0,
+    curvature_mode="exp",
+    curvature_clip=(1e-3, 1e3),
 ):
     """Run monochromatically-driven phase dynamics; return (avg_field, buffer)."""
     buf = deque(maxlen=avg_last)
@@ -117,7 +236,20 @@ def run_driven_phase_wave(
         for (y, x, amp) in sources:
             drive0[y, x] += amp * np.exp(-1j * drive_omega * t0)
 
-    v_half = init_phase_leapfrog(psi, dt, omega0, kappa, drive0=drive0)
+    if curvature_beta == 0.0:
+        v_half = init_phase_leapfrog(psi, dt, omega0, kappa, drive0=drive0, clock_rate=base_clock_rate)
+    else:
+        v_half = init_phase_leapfrog_backreacting(
+            psi,
+            dt,
+            omega0,
+            kappa,
+            drive0=drive0,
+            base_clock_rate=base_clock_rate,
+            curvature_beta=curvature_beta,
+            curvature_mode=curvature_mode,
+            curvature_clip=curvature_clip,
+        )
 
     for n in range(steps):
         t = n * dt
@@ -128,7 +260,18 @@ def run_driven_phase_wave(
             for (y, x, amp) in sources:
                 drive[y, x] += amp * ph
 
-        psi, v_half = step_phase_leapfrog(psi, v_half, dt, omega0, kappa, drive=drive)
+        psi, v_half = step_phase_leapfrog_backreacting(
+            psi,
+            v_half,
+            dt,
+            omega0,
+            kappa,
+            drive=drive,
+            base_clock_rate=base_clock_rate,
+            curvature_beta=curvature_beta,
+            curvature_mode=curvature_mode,
+            curvature_clip=curvature_clip,
+        )
 
         if n >= warmup_step:
             buf.append(psi.copy())
@@ -152,6 +295,10 @@ def run_pulsed_drive_samples(
     pulse_t0=0.0,
     pulse_sigma=1.0,
     sample_every=5,
+    base_clock_rate=1.0,
+    curvature_beta=0.0,
+    curvature_mode="exp",
+    curvature_clip=(1e-3, 1e3),
 ):
     """Run a Gaussian pulse drive and return sampled frames: [(t, psi), ...]."""
     psi = np.zeros(shape, dtype=np.complex128)
@@ -161,14 +308,38 @@ def run_pulsed_drive_samples(
     drive0 = np.zeros_like(psi)
     sy, sx = source_pos
     drive0[sy, sx] = pulse_amp * np.exp(-0.5 * ((t0 - pulse_t0) / pulse_sigma) ** 2)
-    v_half = init_phase_leapfrog(psi, dt, omega0, kappa, drive0=drive0)
+    if curvature_beta == 0.0:
+        v_half = init_phase_leapfrog(psi, dt, omega0, kappa, drive0=drive0, clock_rate=base_clock_rate)
+    else:
+        v_half = init_phase_leapfrog_backreacting(
+            psi,
+            dt,
+            omega0,
+            kappa,
+            drive0=drive0,
+            base_clock_rate=base_clock_rate,
+            curvature_beta=curvature_beta,
+            curvature_mode=curvature_mode,
+            curvature_clip=curvature_clip,
+        )
 
     samples = []
     for n in range(steps):
         t = n * dt
         drive = np.zeros_like(psi)
         drive[sy, sx] = pulse_amp * np.exp(-0.5 * ((t - pulse_t0) / pulse_sigma) ** 2)
-        psi, v_half = step_phase_leapfrog(psi, v_half, dt, omega0, kappa, drive=drive)
+        psi, v_half = step_phase_leapfrog_backreacting(
+            psi,
+            v_half,
+            dt,
+            omega0,
+            kappa,
+            drive=drive,
+            base_clock_rate=base_clock_rate,
+            curvature_beta=curvature_beta,
+            curvature_mode=curvature_mode,
+            curvature_clip=curvature_clip,
+        )
         if n % sample_every == 0:
             samples.append((t, psi.copy()))
     return samples
