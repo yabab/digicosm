@@ -196,6 +196,60 @@ def curvature_proxy(psi):
     return (4 / 6) * axial + (1 / 6) * diag
 
 
+def clock_rate_from_curvature(
+    curvature,
+    *,
+    base=1.0,
+    beta=0.0,
+    mode="exp",
+    clip=(1e-3, 1e3),
+):
+    """Map curvature proxy to a local clock-rate field (time dilation).
+
+    This returns a dimensionless scalar field `clock_rate` used by the integrator
+    via dτ = dt * clock_rate.
+
+    - `beta` controls coupling strength; `beta=0` yields constant `base`.
+    - `mode` controls the monotone map (higher curvature => slower clock):
+        - "exp":     base * exp(-beta * curvature)
+        - "rational": base / (1 + beta * curvature)
+    - `clip` avoids non-physical or numerically extreme rates.
+    """
+    curv = np.asarray(curvature, dtype=float)
+    if beta == 0.0:
+        rate = np.full_like(curv, float(base), dtype=float)
+    else:
+        if mode == "exp":
+            rate = float(base) * np.exp(-float(beta) * curv)
+        elif mode == "rational":
+            rate = float(base) / (1.0 + float(beta) * curv)
+        else:
+            raise ValueError(f"Unknown mode={mode!r}; expected 'exp' or 'rational'.")
+
+    if clip is not None:
+        lo, hi = clip
+        rate = np.clip(rate, float(lo), float(hi))
+    return rate
+
+
+def clock_rate_from_psi(
+    psi,
+    *,
+    base=1.0,
+    beta=0.0,
+    mode="exp",
+    clip=(1e-3, 1e3),
+):
+    """Convenience: compute curvature proxy then map to clock_rate."""
+    return clock_rate_from_curvature(
+        curvature_proxy(psi),
+        base=base,
+        beta=beta,
+        mode=mode,
+        clip=clip,
+    )
+
+
 def hamiltonian_total(psi, *, omega0=0.0, kappa=1.0):
     """Total Hamiltonian proxy matching H = Σ (ω|ψ|^2 + κ Σ |ψ_i-ψ_j|^2)."""
     return float(np.sum(omega0 * energy_density(psi) + kappa * curvature_proxy(psi)))

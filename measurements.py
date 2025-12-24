@@ -213,3 +213,22 @@ def front_radii_by_angle(intensity, center, *, threshold, angles=64, rmin=3, rma
         radii[i] = float(rs[valid][above[-1]])
 
     return radii
+
+
+def estimate_angular_frequency(z_values, times):
+    """Estimate angular frequency ω from complex samples z(t) by phase-unwrapping.
+
+    Returns ω (radians per unit time) from a least-squares fit of unwrap(angle(z))
+    versus time.
+    """
+    z = np.asarray(z_values)
+    t = np.asarray(times, dtype=float)
+    if z.shape[0] != t.shape[0]:
+        raise ValueError("z_values and times must have the same length")
+    if z.shape[0] < 3:
+        raise ValueError("Need at least 3 samples to estimate frequency")
+
+    phases = np.unwrap(np.angle(z))
+    A = np.vstack([t, np.ones_like(t)]).T
+    slope, _intercept = np.linalg.lstsq(A, phases, rcond=None)[0]
+    return float(slope)
