@@ -41,11 +41,6 @@ def test_two_source_interference_relativistic():
     print(f"result -> best peaks = {best['count']}, params={best.get('params')}")
     if best['count'] >= 6:
         print("✅ PASS: Many interference fringes detected")
-        # mark todo completed
-        try:
-            from functions import manage_todo_list
-        except Exception:
-            pass
         return True
 
     print("❌ FAIL: Insufficient fringes with optimized setup")

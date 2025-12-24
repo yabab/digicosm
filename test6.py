@@ -1,5 +1,5 @@
 import numpy as np
-from model import step_relativistic_2nd_order
+from model import step_relativistic_2nd_order, cardinal_diagonal_peak_delta
 
 
 def test_cardinal_vs_diagonal():
@@ -17,19 +17,9 @@ def test_cardinal_vs_diagonal():
         psi_nm1, psi_n = step_relativistic_2nd_order(psi_nm1, psi_n, dt, c, m)
 
     I = np.abs(psi_n) ** 2
-    # peak along cardinal (to the right)
-    row = I[center, center:]
-    card_offset = int(np.argmax(row))
-    card = card_offset
-
-    # peak along diagonal (down-right)
-    diag_line = np.array([I[center + i, center + i] for i in range(N - center)])
-    diag_offset = int(np.argmax(diag_line))
-    diag = diag_offset
-
-    delta = abs(card - diag)
-    print("Δpeak =", delta)
-    if delta < 4:
+    result = cardinal_diagonal_peak_delta(I, (center, center))
+    print("Δpeak =", result["delta"])
+    if result["delta"] < 4:
         print("✅ PASS: Cardinal/diagonal peak positions similar")
         return True
     else:

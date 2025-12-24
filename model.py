@@ -199,6 +199,63 @@ def detect_front_outermost(intensity, radial_cache, *, rmin=5, threshold=1e-8):
     return None
 
 
+def isotropy_ring_error(intensity, source_pos, *, dr=3, search_start=5):
+    """Compute isotropy error σ/μ on the brightest ring around a source.
+
+    - Builds a radial mean profile around `source_pos`.
+    - Finds the peak radius (ignoring `search_start` pixels near the source).
+    - Computes σ/μ of intensity values in a ring of half-thickness `dr`.
+
+    Returns dict with keys: r_peak, iso_error, mean_I, std_I.
+    """
+    sy, sx = source_pos
+    h, w = intensity.shape
+    yy, xx = np.indices((h, w))
+    r = np.sqrt((xx - sx) ** 2 + (yy - sy) ** 2)
+
+    r_int = r.astype(np.int32)
+    max_r = int(r_int.max())
+    flat_int = intensity.ravel()
+    flat_r = r_int.ravel()
+
+    radial_sum = np.bincount(flat_r, weights=flat_int, minlength=max_r + 1)
+    radial_count = np.bincount(flat_r, minlength=max_r + 1)
+    radial_mean = radial_sum / np.maximum(radial_count, 1)
+
+    r_peak = int(np.argmax(radial_mean[search_start:]) + search_start)
+
+    mask = (r >= r_peak - dr) & (r <= r_peak + dr)
+    ring_vals = intensity[mask]
+    mean_I = float(ring_vals.mean())
+    std_I = float(ring_vals.std())
+    iso_error = std_I / mean_I if mean_I != 0.0 else float("inf")
+
+    return {
+        "r_peak": r_peak,
+        "iso_error": iso_error,
+        "mean_I": mean_I,
+        "std_I": std_I,
+    }
+
+
+def cardinal_diagonal_peak_delta(intensity, center):
+    """Compare peak offsets along +x (cardinal) vs down-right diagonal.
+
+    Returns dict with keys: card, diag, delta.
+    """
+    cy, cx = center
+    h, w = intensity.shape
+
+    row = intensity[cy, cx:]
+    card = int(np.argmax(row))
+
+    max_len = min(h - cy, w - cx)
+    diag_line = np.array([intensity[cy + i, cx + i] for i in range(max_len)])
+    diag = int(np.argmax(diag_line))
+
+    return {"card": card, "diag": diag, "delta": abs(card - diag)}
+
+
 def detect_from_buffer(buf, center=None, center_y=None):
     """Detect fringe counts from a buffer of recent complex frames.
 
