@@ -1,5 +1,6 @@
 import numpy as np
-from model import run_driven_relativistic_wave, isotropy_ring_error
+from model import run_driven_relativistic_wave
+from measurements import isotropy_ring_error
 
 # ============================================================
 # TEST 1 — Single Source Isotropy (Driven, Complex, Relativistic)

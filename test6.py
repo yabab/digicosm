@@ -1,5 +1,6 @@
 import numpy as np
-from model import step_relativistic_2nd_order, cardinal_diagonal_peak_delta
+from model import step_relativistic_2nd_order
+from measurements import cardinal_diagonal_peak_delta
 
 
 def test_cardinal_vs_diagonal():

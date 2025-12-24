@@ -1,9 +1,6 @@
 import numpy as np
-from model import (
-    step_relativistic_2nd_order,
-    precompute_radial_reduction,
-    detect_front_outermost,
-)
+from model import step_relativistic_2nd_order
+from measurements import precompute_radial_reduction, detect_front_outermost
 
 
 def test_c_scaling():
