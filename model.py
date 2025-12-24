@@ -424,3 +424,17 @@ def clock_rate_from_psi(
 def hamiltonian_total(psi, *, omega0=0.0, kappa=1.0):
     """Total Hamiltonian proxy matching H = Σ (ω|ψ|^2 + κ Σ |ψ_i-ψ_j|^2)."""
     return float(np.sum(omega0 * energy_density(psi) + kappa * curvature_proxy(psi)))
+
+
+def weighted_norm(psi, *, clock_rate):
+    """Metric-weighted norm for lapse-coupled evolution.
+
+    For dynamics i dψ/dt = N(x) H ψ with H Hermitian and fixed N(x)>0,
+    the conserved quadratic form is ∑ |ψ|^2 / N.
+
+    Here `clock_rate` plays the role of N.
+    """
+    N = np.asarray(clock_rate, dtype=float)
+    if np.any(N <= 0):
+        raise ValueError("clock_rate must be strictly positive")
+    return float(np.sum(energy_density(psi) / N))
