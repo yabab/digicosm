@@ -514,6 +514,119 @@ def step_clock_rate_wave(
     return N_next
 
 
+def init_coupled_gravity_matter(
+    psi0,
+    dt,
+    omega,
+    kappa,
+    *,
+    clock_rate0=1.0,
+    gravity_c_g=1.0,
+    gravity_gamma=0.0,
+    gravity_mu=0.0,
+    gravity_base=1.0,
+    gravity_source_strength=1.0,
+    gravity_source_kind="density",
+    gravity_subtract_mean=False,
+    gravity_source=None,
+    gravity_clip=(1e-3, 1e3),
+):
+    """Initialize coupled evolution for (psi, clock_rate).
+
+    - clock_rate evolves with a local wave equation (finite-speed gravity field)
+    - psi evolves with local proper time: dτ = dt * clock_rate
+
+    Returns (psi, v_half, clock_rate, clock_rate_prev).
+    """
+    psi = np.array(psi0, dtype=np.complex128, copy=True)
+
+    clock_rate = np.array(clock_rate0, dtype=float, copy=True)
+    if gravity_source is None:
+        src0 = gravity_source_from_psi(
+            psi,
+            strength=gravity_source_strength,
+            kind=gravity_source_kind,
+            subtract_mean=gravity_subtract_mean,
+        )
+    else:
+        src0 = np.asarray(gravity_source, dtype=float)
+    clock_rate_prev = init_clock_rate_wave(
+        clock_rate,
+        dt,
+        c_g=gravity_c_g,
+        gamma=gravity_gamma,
+        mu=gravity_mu,
+        base=gravity_base,
+        source0=src0,
+        clip=gravity_clip,
+    )
+
+    v_half = init_phase_leapfrog(psi, dt, omega, kappa, clock_rate=clock_rate)
+    return psi, v_half, clock_rate, clock_rate_prev
+
+
+def step_coupled_gravity_matter(
+    psi,
+    v_half,
+    clock_rate,
+    clock_rate_prev,
+    dt,
+    omega,
+    kappa,
+    *,
+    drive=None,
+    gravity_c_g=1.0,
+    gravity_gamma=0.0,
+    gravity_mu=0.0,
+    gravity_base=1.0,
+    gravity_source_strength=1.0,
+    gravity_source_kind="density",
+    gravity_subtract_mean=False,
+    gravity_source=None,
+    gravity_clip=(1e-3, 1e3),
+):
+    """Advance (psi, clock_rate) one step with midpoint coupling.
+
+    - Source is computed from current psi.
+    - clock_rate is advanced via wave equation.
+    - psi is advanced using clock_rate at the midpoint (N_mid) for symmetry.
+    """
+    if gravity_source is None:
+        src = gravity_source_from_psi(
+            psi,
+            strength=gravity_source_strength,
+            kind=gravity_source_kind,
+            subtract_mean=gravity_subtract_mean,
+        )
+    else:
+        src = np.asarray(gravity_source, dtype=float)
+
+    clock_next = step_clock_rate_wave(
+        clock_rate,
+        clock_rate_prev,
+        dt,
+        c_g=gravity_c_g,
+        gamma=gravity_gamma,
+        mu=gravity_mu,
+        base=gravity_base,
+        source=src,
+        clip=gravity_clip,
+    )
+
+    clock_mid = 0.5 * (clock_rate + clock_next)
+    psi_next, v_half_next = step_phase_leapfrog(
+        psi,
+        v_half,
+        dt,
+        omega,
+        kappa,
+        drive=drive,
+        clock_rate=clock_mid,
+    )
+
+    return psi_next, v_half_next, clock_next, clock_rate
+
+
 def hamiltonian_total(psi, *, omega0=0.0, kappa=1.0):
     """Total Hamiltonian proxy matching H = Σ (ω|ψ|^2 + κ Σ |ψ_i-ψ_j|^2)."""
     return float(np.sum(omega0 * energy_density(psi) + kappa * curvature_proxy(psi)))
