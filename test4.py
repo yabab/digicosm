@@ -1,34 +1,45 @@
 import numpy as np
-from model import step_relativistic_2nd_order, energy_relativistic_2nd_order
+from model import init_phase_leapfrog, step_phase_leapfrog, hamiltonian_total, energy_density
 
 
 def test_energy_conservation():
-    print("TEST 4: Energy conservation")
+    print("TEST 4: Norm/Hamiltonian stability (phase dynamics)")
 
-    N, steps, dt, c = 100, 2000, 0.02, 1.0
-    m = 0.0
+    N, steps, dt = 120, 3000, 0.01
+    kappa = 1.0
+    omega0 = 0.0
 
-    psi_nm1 = np.zeros((N, N), dtype=np.complex128)
-    psi_n = np.zeros_like(psi_nm1)
+    psi = np.zeros((N, N), dtype=np.complex128)
+    psi[N // 2 - 5, N // 2 - 30] = 1.0 + 0.0j
+    psi[N // 2 + 5, N // 2 - 30] = 1.0 + 0.0j
 
-    # Localized initial displacement (zero initial velocity => psi_nm1 == psi_n).
-    psi_n[N // 2 - 5, N // 2 - 30] = 1.0 + 0.0j
-    psi_n[N // 2 + 5, N // 2 - 30] = 1.0 + 0.0j
-    psi_nm1 = psi_n.copy()
+    v_half = init_phase_leapfrog(psi, dt, omega0, kappa)
 
-    E = []
+    n0 = float(np.sum(energy_density(psi)))
+    h0 = hamiltonian_total(psi, omega0=omega0, kappa=kappa)
+
+    norms = []
+    hams = []
     for _ in range(steps):
-        psi_nm1, psi_n = step_relativistic_2nd_order(psi_nm1, psi_n, dt, c, m)
-        E.append(energy_relativistic_2nd_order(psi_nm1, psi_n, dt, c, m))
+        psi, v_half = step_phase_leapfrog(psi, v_half, dt, omega0, kappa)
+        norms.append(float(np.sum(energy_density(psi))))
+        hams.append(hamiltonian_total(psi, omega0=omega0, kappa=kappa))
 
-    drift = abs(E[-1] - E[0]) / abs(E[0]) if E[0] != 0 else float('inf')
-    print(f"energy drift = {drift*100:.4f}%")
-    if drift < 0.01:
-        print("✅ PASS: Energy approximately conserved")
+    n1 = norms[-1]
+    h1 = hams[-1]
+
+    norm_drift = abs(n1 - n0) / (abs(n0) if n0 != 0 else 1.0)
+    ham_drift = abs(h1 - h0) / (abs(h0) if h0 != 0 else 1.0)
+
+    print(f"norm drift = {norm_drift*100:.4f}%")
+    print(f"hamiltonian drift = {ham_drift*100:.4f}%")
+
+    if norm_drift < 0.02 and ham_drift < 0.05:
+        print("✅ PASS: Approximately conserved")
         return True
-    else:
-        print("❌ FAIL: Energy drift too large")
-        return False
+
+    print("❌ FAIL: Drift too large")
+    return False
 
 
 if __name__ == '__main__':

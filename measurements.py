@@ -176,3 +176,40 @@ def detect_from_buffer(buf, center=None, center_y=None):
                                 )
 
     return best_local
+
+
+def front_radii_by_angle(intensity, center, *, threshold, angles=64, rmin=3, rmax=None):
+    """Estimate wavefront radius as a function of angle.
+
+    For each angle, samples points along the ray and returns the *outermost*
+    radius with intensity > threshold. Radii with no detections are NaN.
+
+    This is intended for isotropy tests (σ/r ≪ 1).
+    """
+    h, w = intensity.shape
+    cy, cx = center
+    if rmax is None:
+        rmax = min(cy, cx, h - 1 - cy, w - 1 - cx) - 2
+    rmax = int(rmax)
+    rmin = int(rmin)
+
+    radii = np.full(int(angles), np.nan, dtype=float)
+    angs = np.linspace(0.0, 2 * np.pi, int(angles), endpoint=False)
+    rs = np.arange(rmin, rmax + 1, dtype=int)
+
+    for i, ang in enumerate(angs):
+        ys = np.rint(cy + rs * np.sin(ang)).astype(int)
+        xs = np.rint(cx + rs * np.cos(ang)).astype(int)
+        valid = (ys >= 0) & (ys < h) & (xs >= 0) & (xs < w)
+        ys = ys[valid]
+        xs = xs[valid]
+        if ys.size == 0:
+            continue
+
+        vals = intensity[ys, xs]
+        above = np.flatnonzero(vals > threshold)
+        if above.size == 0:
+            continue
+        radii[i] = float(rs[valid][above[-1]])
+
+    return radii

@@ -1,57 +1,73 @@
 import numpy as np
-from model import run_driven_relativistic_wave
-from measurements import isotropy_ring_error
+from model import run_pulsed_drive_samples
+from measurements import front_radii_by_angle
 
 # ============================================================
 # TEST 1 — Single Source Isotropy (Driven, Complex, Relativistic)
 # ============================================================
 
 def test_single_source_isotropy_relativistic():
-    print("\nTEST 1: Relativistic Complex Single-Source Isotropy (Driven)")
+    print("\nTEST 1: Phase Dynamics Single-Source Isotropy (Driven)")
 
-    N = 400
-    steps = 1200
-    dt = 0.2
-    c = 1.0
-    m = 0.0
-    omega = 4.0
+    N = 260
+    steps = 1400
+    dt = 0.02
+    kappa = 1.0
+    omega0 = 0.0
     center = N // 2
 
-    psi_nm1 = np.zeros((N, N), dtype=np.complex128)
-    psi_n = np.zeros_like(psi_nm1)
+    # Use a short Gaussian pulse to produce a clear propagating front.
+    sy = center
+    sx = center - 80
+    pulse_amp = 1.0
+    pulse_t0 = 2.0
+    pulse_sigma = 0.6
 
-    # Single point source for isotropy test
-    amp = 1.0
-    sources = [(center, center - 120, amp)]
-
-    psi_avg, _buf = run_driven_relativistic_wave(
-        psi_nm1,
-        psi_n,
+    samples = run_pulsed_drive_samples(
+        (N, N),
         steps,
         dt,
-        c,
-        m,
-        omega,
-        sources,
-        avg_last=600,
-        warmup_frac=0.5,
+        kappa=kappa,
+        omega0=omega0,
+        source_pos=(sy, sx),
+        pulse_amp=pulse_amp,
+        pulse_t0=pulse_t0,
+        pulse_sigma=pulse_sigma,
+        sample_every=10,
     )
-    intensity = np.abs(psi_avg) ** 2
 
-    # --- isotropy measurement around the source center ---
-    # source center (middle of the vertical line)
-    sy = center
-    sx = center - 120
+    # Pick a late-enough snapshot where the front is away from the source.
+    t_snap = pulse_t0 + 8.0
+    snap = min(samples, key=lambda tr: abs(tr[0] - t_snap))
+    t_used, psi = snap
+    intensity = np.abs(psi) ** 2
 
-    result = isotropy_ring_error(intensity, (sy, sx), dr=3, search_start=5)
-    print(f"peak radius = {result['r_peak']}, σ/I = {result['iso_error']:.4f}")
+    # Threshold as a fraction of max intensity away from the source.
+    # (Avoid picking the near-source spike.)
+    inner = 8
+    yy, xx = np.indices((N, N))
+    rr = np.sqrt((yy - sy) ** 2 + (xx - sx) ** 2)
+    mask = rr > inner
+    I_max = float(np.max(intensity[mask]))
+    thresh = max(1e-10, 0.12 * I_max)
 
-    if result["iso_error"] < 0.05:
-        print("✅ PASS: Isotropic steady-state wavefront")
-        return True
-    else:
-        print("❌ FAIL: Anisotropy detected")
+    radii = front_radii_by_angle(intensity, (sy, sx), threshold=thresh, angles=72, rmin=10)
+    radii = radii[np.isfinite(radii)]
+    if radii.size < 40:
+        print("❌ FAIL: insufficient angular front detections")
         return False
+
+    r_mean = float(np.mean(radii))
+    r_std = float(np.std(radii))
+    iso = (r_std / r_mean) if r_mean > 0 else float("inf")
+    print(f"t={t_used:.2f}, r_mean={r_mean:.2f}, σ/r={iso:.4f}")
+
+    if iso < 0.06:
+        print("✅ PASS: Isotropic propagating front")
+        return True
+
+    print("❌ FAIL: Anisotropy detected")
+    return False
 
 # ============================================================
 # Main
