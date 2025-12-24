@@ -232,3 +232,47 @@ def estimate_angular_frequency(z_values, times):
     A = np.vstack([t, np.ones_like(t)]).T
     slope, _intercept = np.linalg.lstsq(A, phases, rcond=None)[0]
     return float(slope)
+
+
+def weighted_norm_change_residual(psi0, psi1, clock_rate0, clock_rate1, dt):
+        """Estimate the residual in the weighted-norm balance over one step.
+
+        Define W = Σ |ψ|^2 / N with N = clock_rate.
+
+        For externally-prescribed N(x,t) (independent of ψ) and Hermitian H in
+            i dψ/dt = N H ψ
+        one has the exact identity:
+            dW/dt = - Σ |ψ|^2 * (Ndot / N^2)
+
+        This function returns (dWdt_actual, dWdt_predicted_from_Ndot, residual)
+        using midpoint discretization.
+
+        If N depends on ψ (backreaction), residual captures additional coupling terms.
+        """
+        psi0 = np.asarray(psi0)
+        psi1 = np.asarray(psi1)
+        N0 = np.asarray(clock_rate0, dtype=float)
+        N1 = np.asarray(clock_rate1, dtype=float)
+        dt = float(dt)
+        if dt <= 0:
+                raise ValueError("dt must be positive")
+        if psi0.shape != psi1.shape or psi0.shape != N0.shape or psi0.shape != N1.shape:
+                raise ValueError("psi0, psi1, clock_rate0, clock_rate1 must have same shape")
+
+        if np.any(N0 <= 0) or np.any(N1 <= 0):
+                raise ValueError("clock_rate must be strictly positive")
+
+        rho0 = np.abs(psi0) ** 2
+        rho1 = np.abs(psi1) ** 2
+
+        W0 = float(np.sum(rho0 / N0))
+        W1 = float(np.sum(rho1 / N1))
+        dWdt_actual = (W1 - W0) / dt
+
+        Nmid = 0.5 * (N0 + N1)
+        rhomid = 0.5 * (rho0 + rho1)
+        Ndot_mid = (N1 - N0) / dt
+        dWdt_pred = -float(np.sum(rhomid * Ndot_mid / (Nmid ** 2)))
+
+        residual = dWdt_actual - dWdt_pred
+        return dWdt_actual, dWdt_pred, residual
