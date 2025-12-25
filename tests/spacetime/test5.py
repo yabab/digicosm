@@ -1,7 +1,6 @@
 import numpy as np
-from model import init_phase_leapfrog, step_phase_leapfrog
-from measurements import precompute_radial_reduction, detect_front_outermost
-
+from code.model import init_phase_leapfrog, step_phase_leapfrog
+from code.measurements import precompute_radial_reduction, detect_front_outermost
 
 def test_kappa_scaling():
     print("TEST 5: Propagation speed scaling with kappa")
@@ -55,7 +54,3 @@ def test_kappa_scaling():
     else:
         print("❌ FAIL: c-scaling mismatch")
     return ok
-
-
-if __name__ == '__main__':
-    test_kappa_scaling()

@@ -1,12 +1,11 @@
 import numpy as np
-from model import (
+from code.model import (
     curvature_proxy,
     clock_rate_from_curvature,
     init_phase_leapfrog,
     step_phase_leapfrog,
 )
-from measurements import estimate_angular_frequency
-
+from code.measurements import estimate_angular_frequency
 
 def test_curvature_induced_time_dilation_local():
     print("TEST 8: Curvature-derived clock_rate produces local time dilation")
@@ -71,7 +70,6 @@ def test_curvature_induced_time_dilation_local():
 
     print("✅ PASS: Curvature-derived clock_rate matches local frequency scaling")
     return True
-
 
 if __name__ == "__main__":
     test_curvature_induced_time_dilation_local()

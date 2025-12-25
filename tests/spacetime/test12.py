@@ -1,6 +1,5 @@
 import numpy as np
-from model import curvature_proxy, gravity_source_from_psi, init_clock_rate_wave, step_clock_rate_wave
-
+from code.model import curvature_proxy, gravity_source_from_psi, init_clock_rate_wave, step_clock_rate_wave
 
 def test_gravity_field_causal_propagation():
     print("TEST 12: Dynamical clock_rate field propagates causally")
@@ -108,7 +107,3 @@ def test_gravity_field_causal_propagation():
 
     print("✅ PASS: clock_rate dynamics are local and causal")
     return True
-
-
-if __name__ == "__main__":
-    test_gravity_field_causal_propagation()

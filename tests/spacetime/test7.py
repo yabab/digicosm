@@ -1,7 +1,6 @@
 import numpy as np
-from model import init_phase_leapfrog, step_phase_leapfrog
-from measurements import estimate_angular_frequency
-
+from code.model import init_phase_leapfrog, step_phase_leapfrog
+from code.measurements import estimate_angular_frequency
 
 def test_global_time_dilation_frequency_scaling():
     print("TEST 7: Global time dilation scales frequency")
@@ -43,7 +42,3 @@ def test_global_time_dilation_frequency_scaling():
 
     print("✅ PASS: Frequency scales with global clock_rate")
     return True
-
-
-if __name__ == "__main__":
-    test_global_time_dilation_frequency_scaling()

@@ -1,6 +1,5 @@
 import numpy as np
-from model import init_phase_leapfrog, step_phase_leapfrog, energy_density, weighted_norm
-
+from code.model import init_phase_leapfrog, step_phase_leapfrog, energy_density, weighted_norm
 
 def test_metric_weighted_unitarity_fixed_lapse():
     print("TEST 10: Metric-weighted unitarity under fixed heterogeneous clock_rate")
@@ -59,7 +58,3 @@ def test_metric_weighted_unitarity_fixed_lapse():
 
     print("✅ PASS: Weighted norm is the right conserved quantity under fixed lapse")
     return True
-
-
-if __name__ == "__main__":
-    test_metric_weighted_unitarity_fixed_lapse()

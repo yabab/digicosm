@@ -1,6 +1,5 @@
 import numpy as np
-from model import init_phase_leapfrog, step_phase_leapfrog, hamiltonian_total, energy_density
-
+from code.model import init_phase_leapfrog, step_phase_leapfrog, hamiltonian_total, energy_density
 
 def test_energy_conservation():
     print("TEST 4: Norm/Hamiltonian stability (phase dynamics)")
@@ -40,7 +39,3 @@ def test_energy_conservation():
 
     print("❌ FAIL: Drift too large")
     return False
-
-
-if __name__ == '__main__':
-    test_energy_conservation()

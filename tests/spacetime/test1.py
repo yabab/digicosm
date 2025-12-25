@@ -1,6 +1,6 @@
 import numpy as np
-from model import run_pulsed_drive_samples
-from measurements import front_radii_by_angle
+from code.model import run_pulsed_drive_samples
+from code.measurements import front_radii_by_angle
 
 # ============================================================
 # TEST 1 — Single Source Isotropy (Driven, Complex, Relativistic)
@@ -68,14 +68,3 @@ def test_single_source_isotropy_relativistic():
 
     print("❌ FAIL: Anisotropy detected")
     return False
-
-# ============================================================
-# Main
-# ============================================================
-
-if __name__ == "__main__":
-    ok = test_single_source_isotropy_relativistic()
-    if not ok:
-        print("Test failed.")
-    else:
-        print("Test passed.")

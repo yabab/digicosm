@@ -1,6 +1,6 @@
 import numpy as np
-from model import run_driven_phase_wave
-from measurements import detect_from_buffer
+from code.model import run_driven_phase_wave
+from code.measurements import detect_from_buffer
 
 # ============================================================
 # TEST 2 — Two-Source Interference (CORRECT)
@@ -55,10 +55,3 @@ def test_two_source_interference_relativistic():
 
     print("❌ FAIL: Insufficient fringes with optimized setup")
     return False
-
-# ============================================================
-# RUN
-# ============================================================
-
-if __name__ == "__main__":
-    test_two_source_interference_relativistic()

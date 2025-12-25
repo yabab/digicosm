@@ -1,7 +1,6 @@
 import numpy as np
-from model import init_phase_leapfrog, step_phase_leapfrog
-from measurements import cardinal_diagonal_peak_delta
-
+from code.model import init_phase_leapfrog, step_phase_leapfrog
+from code.measurements import cardinal_diagonal_peak_delta
 
 def test_cardinal_vs_diagonal():
     print("TEST 6: Cardinal vs Diagonal")
@@ -26,7 +25,3 @@ def test_cardinal_vs_diagonal():
     else:
         print("❌ FAIL: Significant cardinal/diagonal difference")
         return False
-
-
-if __name__ == '__main__':
-    test_cardinal_vs_diagonal()

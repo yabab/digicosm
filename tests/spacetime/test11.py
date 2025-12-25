@@ -1,13 +1,12 @@
 import numpy as np
-from model import (
+from code.model import (
     init_phase_leapfrog,
     step_phase_leapfrog,
     init_phase_leapfrog_backreacting,
     step_phase_leapfrog_backreacting,
     clock_rate_from_psi,
 )
-from measurements import weighted_norm_change_residual
-
+from code.measurements import weighted_norm_change_residual
 
 def test_weighted_norm_residual_separates_external_vs_backreaction():
     print("TEST 11: Weighted-norm residual separates numerical error vs backreaction")
@@ -116,7 +115,3 @@ def test_weighted_norm_residual_separates_external_vs_backreaction():
 
     print("✅ PASS: Diagnostic separates numerical error vs physical backreaction")
     return True
-
-
-if __name__ == "__main__":
-    test_weighted_norm_residual_separates_external_vs_backreaction()

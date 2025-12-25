@@ -1,7 +1,6 @@
 import numpy as np
-from model import init_coupled_gravity_matter, step_coupled_gravity_matter, gravity_source_from_psi
-from measurements import estimate_angular_frequency
-
+from code.model import init_coupled_gravity_matter, step_coupled_gravity_matter, gravity_source_from_psi
+from code.measurements import estimate_angular_frequency
 
 def test_coupled_gravity_delayed_frequency_shift():
     print("TEST 13: Coupled gravity causes delayed frequency shift at a probe")
@@ -150,7 +149,3 @@ def test_coupled_gravity_delayed_frequency_shift():
 
     print("✅ PASS: Probe frequency shifts only after gravity arrival")
     return True
-
-
-if __name__ == "__main__":
-    test_coupled_gravity_delayed_frequency_shift()

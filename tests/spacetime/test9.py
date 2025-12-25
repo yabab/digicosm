@@ -1,5 +1,5 @@
 import numpy as np
-from model import (
+from code.model import (
     init_phase_leapfrog,
     step_phase_leapfrog,
     init_phase_leapfrog_backreacting,
@@ -8,7 +8,6 @@ from model import (
     clock_rate_from_psi,
     energy_density,
 )
-
 
 def test_backreaction_stability_and_effect():
     print("TEST 9: Curvature backreaction (dynamic time dilation) is stable and affects evolution")
@@ -129,7 +128,3 @@ def test_backreaction_stability_and_effect():
 
     print("✅ PASS: Backreaction is stable and changes dynamics")
     return True
-
-
-if __name__ == "__main__":
-    test_backreaction_stability_and_effect()

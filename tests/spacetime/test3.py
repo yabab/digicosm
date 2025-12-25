@@ -1,7 +1,6 @@
 import numpy as np
-from model import run_pulsed_drive_samples
-from measurements import precompute_radial_reduction, detect_front_outermost
-
+from code.model import run_pulsed_drive_samples
+from code.measurements import precompute_radial_reduction, detect_front_outermost
 
 # ============================================================
 # TEST 3 — Light-cone speed
@@ -68,7 +67,3 @@ def test_light_cone_speed():
 
     print("❌ FAIL: unreasonable speed")
     return False
-
-
-if __name__ == "__main__":
-    test_light_cone_speed()
