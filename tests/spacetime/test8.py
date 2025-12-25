@@ -8,7 +8,13 @@ from code.model import (
 from code.measurements import estimate_angular_frequency
 
 def test_curvature_induced_time_dilation_local():
-    print("TEST 8: Curvature-derived clock_rate produces local time dilation")
+    """Test curvature-derived local time dilation.
+    
+    Validates that spatially-varying clock_rate computed from field curvature
+    produces the expected local time dilation: sites with higher curvature
+    should have slower clocks and thus lower observed frequencies.
+    """
+    print("\nTEST 8: Curvature-derived clock_rate produces local time dilation")
 
     N = 40
     omega0 = 2.5
@@ -16,14 +22,25 @@ def test_curvature_induced_time_dilation_local():
     dt = 0.002
     steps = 7000
 
+    # Input validation
+    assert N > 0 and steps > 0, "Grid size and steps must be positive"
+    assert omega0 > 0 and dt > 0, "Omega and time step must be positive"
+    assert kappa == 0.0, "Test requires decoupled sites (kappa=0)"
+
     # Build a field with a localized phase defect to create curvature gradients.
     psi0 = np.ones((N, N), dtype=np.complex128)
     cy, cx = N // 2, N // 2
     psi0[cy - 1 : cy + 2, cx - 1 : cx + 2] *= -1.0  # small pi-phase patch
 
     curv0 = curvature_proxy(psi0)
+    assert np.isfinite(curv0).all(), "Non-finite curvature values"
+    
     # Map curvature -> clock_rate (higher curvature => slower clock).
-    clock_rate = clock_rate_from_curvature(curv0, base=1.0, beta=0.8, mode="rational", clip=(0.05, 2.0))
+    clip = (0.05, 2.0)
+    clock_rate = clock_rate_from_curvature(curv0, base=1.0, beta=0.8, mode="rational", clip=clip)
+    
+    assert np.isfinite(clock_rate).all(), "Non-finite clock_rate values"
+    assert np.all(clock_rate >= clip[0]) and np.all(clock_rate <= clip[1]), "Clock rate outside clip bounds"
 
     max_idx = np.unravel_index(int(np.argmax(curv0)), curv0.shape)
     min_idx = np.unravel_index(int(np.argmin(curv0)), curv0.shape)
@@ -31,11 +48,12 @@ def test_curvature_induced_time_dilation_local():
     cr_hi = float(clock_rate[max_idx])
     cr_lo = float(clock_rate[min_idx])
 
-    print(f"curv_max at {max_idx}, clock_rate={cr_hi:.4f}")
-    print(f"curv_min at {min_idx}, clock_rate={cr_lo:.4f}")
+    print(f"Info: curv_max at {max_idx}, clock_rate={cr_hi:.4f}")
+    print(f"  curv_min at {min_idx}, clock_rate={cr_lo:.4f}")
 
     if not (cr_hi < cr_lo):
-        print("❌ FAIL: Expected higher curvature => smaller clock_rate")
+        print(f"❌ FAIL: Expected higher curvature => smaller clock_rate")
+        print(f"  But got cr_hi={cr_hi:.4f} >= cr_lo={cr_lo:.4f}")
         return False
 
     psi = psi0.copy()
@@ -73,6 +91,3 @@ def test_curvature_induced_time_dilation_local():
 
     print("✅ PASS: Curvature-derived clock_rate matches local frequency scaling")
     return True
-
-if __name__ == "__main__":
-    test_curvature_induced_time_dilation_local()
