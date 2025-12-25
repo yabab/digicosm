@@ -400,6 +400,25 @@ def clock_rate_from_psi(
         clip=clip,
     )
 
+
+def compute_clock_rate(*, psi=None, curvature=None, base=1.0, beta=0.0, mode="exp", clip=(1e-3, 1e3)):
+    """Centralized helper to compute a clock_rate field.
+
+    Exactly one of `psi` or `curvature` must be provided. If `psi` is given,
+    the function computes the curvature proxy and maps it to a clock_rate.
+    Otherwise it maps the provided `curvature` array.
+
+    This helper centralizes argument validation and clipping semantics so callers
+    can rely on a single API for clock-rate computation.
+    """
+    if (psi is None) == (curvature is None):
+        raise ValueError("Provide exactly one of 'psi' or 'curvature'")
+
+    if psi is not None:
+        return clock_rate_from_psi(psi, base=base, beta=beta, mode=mode, clip=clip)
+    else:
+        return clock_rate_from_curvature(curvature, base=base, beta=beta, mode=mode, clip=clip)
+
 def gravity_source_from_psi(
     psi,
     *,

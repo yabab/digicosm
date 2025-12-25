@@ -1,33 +1,61 @@
-Spacetime / gravity
+Spacetime / gravity — reorganized actionable plan
 
-* Only a lapse (time dilation), no full metric: there’s no spatial metric (length contraction), no shift vector (frame dragging), no tensor degrees of freedom (gravitational waves are scalar here).
-* No constraints / diffeomorphism symmetry: GR isn’t just “a field that slows clocks”; it has gauge freedom and constraint equations that must hold on each slice.
-* No equivalence-principle enforcement: you don’t yet guarantee that all forms of energy/momentum gravitate the same way, or that all matter responds universally to the same geometry.
-* No covariant stress-energy coupling: sourcing is heuristic (density/curvature proxy) rather than a conserved stress-energy tensor driving metric evolution.
+Goal: break the high-level limitations into independent, implementable tasks ordered so each can be completed without being blocked by others. Tasks are grouped by dependency level: Immediate (no prerequisites), Short-term (small dependencies), Medium (require completed short-term items), and Long-term (large architectural work).
 
-Relativity / kinematics
+Immediate — can be implemented and tested now
+- Add and harden unit tests and small utilities:
+	- Expand tests for `curvature_proxy`, `clock_rate_from_psi`, `laplacian_iso`, and leapfrog init/step to validate behavior on small grids (files: `code/model.py`, `code/measurements.py`, `tests/`), and include NaN/Inf checks.
+	- Add deterministic RNG seeds and smaller grid smoke-tests to make CI fast and reliable.
+	- Improve measurement helpers to expose stable intermediate diagnostics (e.g., radial cache invariants).
+	Why: low risk, directly increases confidence and enables later changes.
 
-* No Lorentz invariance at the microscopic level: you can approximate isotropy/finite speed, but exact Lorentz symmetry (boost invariance, proper dispersion) is not present.
-* No local inertial frames / geodesics: you don’t yet have a clean notion of “free fall” as geodesic motion in an emergent metric, beyond “clock rate changes”.
+Short-term — small dependencies, self-contained
+- Robustify clock-rate (lapse) code path:
+	- Centralize and test clock-rate clipping, broadcasting, and per-site dt scaling (no global side effects).
+	- Add unit tests that exercise `clock_rate_from_psi` and `clock_rate_from_curvature` with edge cases and clipping.
+	Why: keeps later physics changes from being blocked by numerical surprises.
 
-Quantum physics (in the modern sense)
+- Improve energy/hamiltonian diagnostics and conservation tests:
+	- Add a clear API to compute KE/PE and weighted norms (`hamiltonian_total`, `energy_density`, `weighted_norm`), and unit tests comparing conserved quantities in controlled scenarios.
+	Why: Allows independent verification of later physical couplings.
 
-* No measurement theory / Born rule: it’s a deterministic complex field; “probabilities” and collapse aren’t modeled.
-* No quantization: fields aren’t operators, there’s no commutation structure, no particle creation/annihilation, no vacuum fluctuations, no entanglement dynamics (beyond classical-wave interference analogs).
-* No fermions: your field is a scalar; fermionic statistics/Pauli exclusion are missing.
+Medium — higher-level physics features with light prerequisites
+- Make sourcing less heuristic (incremental):
+	- Implement a small, testable abstraction `gravity_source_from_fields(...)` that accepts different source kinds (density, curvature) and returns normalized, clipped sources. Keep existing proxy computations behind this API so callers don't rely on the heuristic directly.
+	- Add unit tests comparing different source kinds on frozen fields.
+	Why: This decouples callers from the exact choice of source mapping and enables swapping/repair later.
 
-Matter content / forces
+- Local lapse dynamics (wave/field evolution) improvements:
+	- Harden `init_clock_rate_wave`, `step_clock_rate_wave` with clear boundary/clip behavior and unit tests for causality on small domains.
+	- Add regression tests that validate that the probe at known distances remains unchanged until the wavefront arrives.
+	Why: This is required before coupling clock evolution to matter; can be developed after the clock-rate hardening.
 
-* No gauge fields: no electromagnetism (U(1)), no weak (SU(2)), no strong (SU(3)); so no charge, no Coulomb law, no radiation as a vector field, no confinement, etc.
-* No multiple species: realistic physics needs multiple interacting fields (different masses, charges, couplings).
-* No mass generation / symmetry breaking: no Higgs-like mechanism, no Yukawa couplings, no effective masses beyond hand-set parameters.
+Long-term — large architectural or conceptual changes (may require project redesign)
+- Replace heuristic sourcing with (approximate) conserved stress-energy coupling:
+	- Design a discrete stress-energy density evaluator (local, testable) and a minimal conservation-aware coupling; start by implementing local energy density sampling and unit tests.
+	- Make this a staged improvement: first read-only diagnostics, then a one-way coupling (matter -> gravity) before attempting full two-way conserved evolution.
+	Why: This is a large change — split into small, testable steps to avoid blocking.
 
-Thermo / statistical physics
+- Add additional degrees of freedom (vector fields, multiple species):
+	- Introduce a clear plugin pattern for adding fields (scalar/vector) and per-species parameters (mass, charge). Implement one extra scalar species as a proof of concept.
+	Why: Enables experiment without forcing a full rewrite.
 
-* No dissipation or irreversibility (by design): real macroscopic physics has entropy production, transport coefficients, thermalization, noise.
-* No temperature/ensemble modeling: no equilibrium states, fluctuations, or coarse-grained hydrodynamics.
+- Symmetry/continuum and performance
+	- Add targeted tests for isotropy, scaling, and dispersion on finer meshes; expose options for improved stencils.
+	- Profile and isolate hotspots; add optional faster NumPy/Numba paths behind clear, covered APIs.
+	Why: These are optional optimizations and require stable APIs/tests first.
 
-Continuum / scale issues
+Research / aspirational (conceptual — do after smaller steps)
+- Lorentz invariance, local inertial frames, and equivalence principle enforcement — plan experimental designs, but do not block core progress on these.
+- Measurement theory / quantization / fermions / gauge fields — separate research tracks; implement small, self-contained prototypes if desired.
 
-* Renormalization / scale separation: real “effective laws” emerge via RG flow; you don’t yet have a controlled way to show continuum limits, universality classes, or parameter tuning.
-* Dimensionality and topology: you’re in a 2D periodic torus; 3+1D and realistic boundary/causal structures matter a lot.
+Implementation notes
+- Make each task self-contained: add targeted unit tests first, then implementation. Keep changes small and reviewable.
+- For any task that changes numerics, add regression tests that compare behavior on small deterministic inputs before enabling larger runs.
+- Prioritize building small APIs (adapters/wrappers) rather than wholesale replacement; this avoids blocking dependent work.
+
+Next steps
+- I can (a) translate the Immediate and Short-term items into a sequence of concrete PR-sized tasks and create issue-style todos, or (b) start implementing the first Immediate task (tests and measurement helpers). Which would you prefer?
+
+----
+Original notes (kept for reference): list of high-level limitations from the earlier file — preserved, but reorganized above into implementable tasks.
