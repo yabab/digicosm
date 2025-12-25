@@ -368,15 +368,23 @@ def clock_rate_from_curvature(
     - `clip` avoids non-physical or numerically extreme rates.
     """
     curv = np.asarray(curvature, dtype=float)
-    if beta == 0.0:
-        rate = np.full_like(curv, float(base), dtype=float)
-    else:
+
+    # Allow `base` and `beta` to be scalars or arrays broadcastable with `curv`.
+    base_arr = np.asarray(base, dtype=float)
+    beta_arr = np.asarray(beta, dtype=float)
+
+    try:
         if mode == "exp":
-            rate = float(base) * np.exp(-float(beta) * curv)
+            rate = base_arr * np.exp(-beta_arr * curv)
         elif mode == "rational":
-            rate = float(base) / (1.0 + float(beta) * curv)
+            rate = base_arr / (1.0 + beta_arr * curv)
         else:
             raise ValueError(f"Unknown mode={mode!r}; expected 'exp' or 'rational'.")
+    except ValueError as e:
+        # Provide a clearer error when shapes are incompatible for broadcasting.
+        raise ValueError(
+            "`base` and `beta` must be broadcastable to the shape of `curvature`"
+        ) from e
 
     if clip is not None:
         lo, hi = clip
@@ -441,6 +449,56 @@ def gravity_source_from_psi(
         s = energy_density(psi).astype(float)
     else:
         raise ValueError(f"Unknown kind={kind!r}; expected 'curvature' or 'density'.")
+
+    if subtract_mean:
+        s = s - float(np.mean(s))
+    return float(strength) * s
+
+
+def gravity_source_from_fields(fields, *, strength=1.0, kind=None, subtract_mean=True):
+    """Adapter: build a gravity source from a flexible `fields` input.
+
+    `fields` can be:
+    - a complex array: interpreted as `psi` and forwarded to `gravity_source_from_psi`.
+    - a real array: interpreted as a precomputed `density` (|psi|^2) unless `kind` is
+      explicitly set to 'curvature', in which case it's treated as curvature.
+    - a mapping containing one of the keys: 'psi', 'curvature', 'density'.
+
+    The `kind` argument can force interpretation ('curvature'|'density'|'psi').
+    If ambiguous or no usable data is found, raises `ValueError`.
+    """
+    # If a mapping-like object, prefer explicit keys
+    keys = getattr(fields, "keys", None)
+    if callable(keys):
+        # dict-like
+        fkeys = set(fields.keys())
+        if "psi" in fkeys and (kind is None or kind == "psi"):
+            return gravity_source_from_psi(fields["psi"], strength=strength, kind="curvature", subtract_mean=subtract_mean)
+        if "curvature" in fkeys and (kind is None or kind == "curvature"):
+            s = np.asarray(fields["curvature"], dtype=float)
+            if subtract_mean:
+                s = s - float(np.mean(s))
+            return float(strength) * s
+        if "density" in fkeys and (kind is None or kind == "density"):
+            s = np.asarray(fields["density"], dtype=float)
+            if subtract_mean:
+                s = s - float(np.mean(s))
+            return float(strength) * s
+        # If mapping-like but contains none of the expected keys, fail fast.
+        raise ValueError("Mapping input must contain one of: 'psi', 'curvature', 'density'")
+
+    arr = np.asarray(fields)
+    if np.iscomplexobj(arr) or (kind == "psi"):
+        return gravity_source_from_psi(arr, strength=strength, kind="curvature", subtract_mean=subtract_mean)
+
+    # At this point arr is real-valued. Interpret based on `kind` if provided.
+    if kind == "curvature":
+        s = arr.astype(float)
+    elif kind == "density" or kind is None:
+        # by default treat a real array as density
+        s = arr.astype(float)
+    else:
+        raise ValueError("Unable to interpret `fields` for gravity source; provide 'psi', 'curvature' or 'density'.")
 
     if subtract_mean:
         s = s - float(np.mean(s))
