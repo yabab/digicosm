@@ -332,6 +332,41 @@ def energy_density(psi):
     """Microscopic energy proxy used for coarse-graining: E_i = |ψ_i|^2."""
     return np.abs(psi) ** 2
 
+
+def kinetic_energy_density(psi_now, psi_prev, dt):
+    """Per-site kinetic energy density ~ |(ψ_now - ψ_prev)/dt|^2."""
+    psi_now = np.asarray(psi_now)
+    psi_prev = np.asarray(psi_prev)
+    vel = (psi_now - psi_prev) / float(dt)
+    return np.abs(vel) ** 2
+
+
+def kinetic_energy(psi_now, psi_prev, dt):
+    """Total kinetic energy (scalar)."""
+    return float(np.sum(kinetic_energy_density(psi_now, psi_prev, dt)))
+
+
+def potential_energy_density(psi, *, omega0=0.0, kappa=1.0):
+    """Per-site potential energy density: ω|ψ|^2 + κ C_i where C_i is curvature_proxy."""
+    return float(omega0) * energy_density(psi) + float(kappa) * curvature_proxy(psi)
+
+
+def potential_energy(psi, *, omega0=0.0, kappa=1.0):
+    """Total potential energy (scalar)."""
+    return float(np.sum(potential_energy_density(psi, omega0=omega0, kappa=kappa)))
+
+
+def total_energy_density(psi_now, psi_prev, dt, *, omega0=0.0, kappa=1.0):
+    """Total per-site energy density = KE_density + PE_density."""
+    ke = kinetic_energy_density(psi_now, psi_prev, dt)
+    pe = potential_energy_density(psi_now, omega0=omega0, kappa=kappa)
+    return ke + pe
+
+
+def total_energy(psi_now, psi_prev, dt, *, omega0=0.0, kappa=1.0):
+    """Total scalar energy: sum over sites of KE+PE."""
+    return float(np.sum(total_energy_density(psi_now, psi_prev, dt, omega0=omega0, kappa=kappa)))
+
 def curvature_proxy(psi):
     """Local curvature proxy C_i ∝ Σ_j |ψ_i - ψ_j|^2 (axial + diagonal weighted)."""
     axial = (
