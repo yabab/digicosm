@@ -1,6 +1,5 @@
 import numpy as np
 
-
 def precompute_radial_reduction(shape, center):
     """Precompute helpers to compute radial max profiles efficiently."""
     h, w = shape
@@ -22,7 +21,6 @@ def precompute_radial_reduction(shape, center):
         "max_r": max_r,
     }
 
-
 def detect_front_outermost(intensity, radial_cache, *, rmin=5, threshold=1e-8):
     """Return the *outermost* radius where intensity exceeds threshold."""
     flat_sorted = intensity.ravel()[radial_cache["order"]]
@@ -39,7 +37,6 @@ def detect_front_outermost(intensity, radial_cache, *, rmin=5, threshold=1e-8):
         if radial_max[r] > threshold:
             return r
     return None
-
 
 def isotropy_ring_error(intensity, source_pos, *, dr=3, search_start=5):
     """Compute isotropy error σ/μ on the brightest ring around a source."""
@@ -72,7 +69,6 @@ def isotropy_ring_error(intensity, source_pos, *, dr=3, search_start=5):
         "std_I": std_I,
     }
 
-
 def cardinal_diagonal_peak_delta(intensity, center):
     """Compare peak offsets along +x (cardinal) vs down-right diagonal."""
     cy, cx = center
@@ -86,7 +82,6 @@ def cardinal_diagonal_peak_delta(intensity, center):
     diag = int(np.argmax(diag_line))
 
     return {"card": card, "diag": diag, "delta": abs(card - diag)}
-
 
 def detect_from_buffer(buf, center=None, center_y=None):
     """Detect fringe counts from a buffer of recent complex frames."""
@@ -177,7 +172,6 @@ def detect_from_buffer(buf, center=None, center_y=None):
 
     return best_local
 
-
 def front_radii_by_angle(intensity, center, *, threshold, angles=64, rmin=3, rmax=None):
     """Estimate wavefront radius as a function of angle.
 
@@ -214,7 +208,6 @@ def front_radii_by_angle(intensity, center, *, threshold, angles=64, rmin=3, rma
 
     return radii
 
-
 def estimate_angular_frequency(z_values, times):
     """Estimate angular frequency ω from complex samples z(t) by phase-unwrapping.
 
@@ -233,46 +226,45 @@ def estimate_angular_frequency(z_values, times):
     slope, _intercept = np.linalg.lstsq(A, phases, rcond=None)[0]
     return float(slope)
 
-
 def weighted_norm_change_residual(psi0, psi1, clock_rate0, clock_rate1, dt):
-        """Estimate the residual in the weighted-norm balance over one step.
+    """Estimate the residual in the weighted-norm balance over one step.
 
-        Define W = Σ |ψ|^2 / N with N = clock_rate.
+    Define W = Σ |ψ|^2 / N with N = clock_rate.
 
-        For externally-prescribed N(x,t) (independent of ψ) and Hermitian H in
-            i dψ/dt = N H ψ
-        one has the exact identity:
-            dW/dt = - Σ |ψ|^2 * (Ndot / N^2)
+    For externally-prescribed N(x,t) (independent of ψ) and Hermitian H in
+        i dψ/dt = N H ψ
+    one has the exact identity:
+        dW/dt = - Σ |ψ|^2 * (Ndot / N^2)
 
-        This function returns (dWdt_actual, dWdt_predicted_from_Ndot, residual)
-        using midpoint discretization.
+    This function returns (dWdt_actual, dWdt_predicted_from_Ndot, residual)
+    using midpoint discretization.
 
-        If N depends on ψ (backreaction), residual captures additional coupling terms.
-        """
-        psi0 = np.asarray(psi0)
-        psi1 = np.asarray(psi1)
-        N0 = np.asarray(clock_rate0, dtype=float)
-        N1 = np.asarray(clock_rate1, dtype=float)
-        dt = float(dt)
-        if dt <= 0:
-                raise ValueError("dt must be positive")
-        if psi0.shape != psi1.shape or psi0.shape != N0.shape or psi0.shape != N1.shape:
-                raise ValueError("psi0, psi1, clock_rate0, clock_rate1 must have same shape")
+    If N depends on ψ (backreaction), residual captures additional coupling terms.
+    """
+    psi0 = np.asarray(psi0)
+    psi1 = np.asarray(psi1)
+    N0 = np.asarray(clock_rate0, dtype=float)
+    N1 = np.asarray(clock_rate1, dtype=float)
+    dt = float(dt)
+    if dt <= 0:
+            raise ValueError("dt must be positive")
+    if psi0.shape != psi1.shape or psi0.shape != N0.shape or psi0.shape != N1.shape:
+            raise ValueError("psi0, psi1, clock_rate0, clock_rate1 must have same shape")
 
-        if np.any(N0 <= 0) or np.any(N1 <= 0):
-                raise ValueError("clock_rate must be strictly positive")
+    if np.any(N0 <= 0) or np.any(N1 <= 0):
+            raise ValueError("clock_rate must be strictly positive")
 
-        rho0 = np.abs(psi0) ** 2
-        rho1 = np.abs(psi1) ** 2
+    rho0 = np.abs(psi0) ** 2
+    rho1 = np.abs(psi1) ** 2
 
-        W0 = float(np.sum(rho0 / N0))
-        W1 = float(np.sum(rho1 / N1))
-        dWdt_actual = (W1 - W0) / dt
+    W0 = float(np.sum(rho0 / N0))
+    W1 = float(np.sum(rho1 / N1))
+    dWdt_actual = (W1 - W0) / dt
 
-        Nmid = 0.5 * (N0 + N1)
-        rhomid = 0.5 * (rho0 + rho1)
-        Ndot_mid = (N1 - N0) / dt
-        dWdt_pred = -float(np.sum(rhomid * Ndot_mid / (Nmid ** 2)))
+    Nmid = 0.5 * (N0 + N1)
+    rhomid = 0.5 * (rho0 + rho1)
+    Ndot_mid = (N1 - N0) / dt
+    dWdt_pred = -float(np.sum(rhomid * Ndot_mid / (Nmid ** 2)))
 
-        residual = dWdt_actual - dWdt_pred
-        return dWdt_actual, dWdt_pred, residual
+    residual = dWdt_actual - dWdt_pred
+    return dWdt_actual, dWdt_pred, residual

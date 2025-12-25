@@ -1,7 +1,6 @@
 import numpy as np
 from collections import deque
 
-
 # ============================================================
 # Phase dynamics core (reversible, local, linear)
 #
@@ -11,7 +10,6 @@ from collections import deque
 #
 # Implemented with an explicit, time-reversible leapfrog on (Re ψ, Im ψ).
 # ============================================================
-
 
 def laplacian_iso(f):
     """Isotropic 2D stencil using axial + diagonal neighbors (periodic)."""
@@ -27,7 +25,6 @@ def laplacian_iso(f):
     )
     return (4 / 6) * (axial - 4 * f) + (1 / 6) * (diag - 4 * f)
 
-
 def apply_hamiltonian(psi, omega, kappa, *, laplacian=laplacian_iso):
     """Apply the linear Hermitian operator Hψ = ωψ + κ Lψ.
 
@@ -35,7 +32,6 @@ def apply_hamiltonian(psi, omega, kappa, *, laplacian=laplacian_iso):
     `kappa` may be a scalar (uniform coupling) or an array (future anisotropy/metric).
     """
     return omega * psi + kappa * laplacian(psi)
-
 
 def init_phase_leapfrog(psi0, dt, omega, kappa, *, drive0=None, clock_rate=None, laplacian=laplacian_iso):
     """Initialize leapfrog half-step storage for phase dynamics.
@@ -52,7 +48,6 @@ def init_phase_leapfrog(psi0, dt, omega, kappa, *, drive0=None, clock_rate=None,
     dvdt0 = -(Au0 + drive_r0)
     v_half0 = v0 + 0.5 * dt_eff * dvdt0
     return v_half0
-
 
 def init_phase_leapfrog_backreacting(
     psi0,
@@ -91,7 +86,6 @@ def init_phase_leapfrog_backreacting(
         laplacian=laplacian,
     )
 
-
 def step_phase_leapfrog(
     psi,
     v_half,
@@ -128,7 +122,6 @@ def step_phase_leapfrog(
 
     psi_next = u_next + 1j * v_next
     return psi_next, v_half_next
-
 
 def step_phase_leapfrog_backreacting(
     psi,
@@ -206,7 +199,6 @@ def step_phase_leapfrog_backreacting(
         laplacian=laplacian,
     )
 
-
 def run_driven_phase_wave(
     psi0,
     steps,
@@ -282,7 +274,6 @@ def run_driven_phase_wave(
     avg = sum(buf) / len(buf)
     return avg, list(buf)
 
-
 def run_pulsed_drive_samples(
     shape,
     steps,
@@ -344,11 +335,9 @@ def run_pulsed_drive_samples(
             samples.append((t, psi.copy()))
     return samples
 
-
 def energy_density(psi):
     """Microscopic energy proxy used for coarse-graining: E_i = |ψ_i|^2."""
     return np.abs(psi) ** 2
-
 
 def curvature_proxy(psi):
     """Local curvature proxy C_i ∝ Σ_j |ψ_i - ψ_j|^2 (axial + diagonal weighted)."""
@@ -365,7 +354,6 @@ def curvature_proxy(psi):
         + np.abs(psi - np.roll(np.roll(psi, 1, 0), 1, 1)) ** 2
     )
     return (4 / 6) * axial + (1 / 6) * diag
-
 
 def clock_rate_from_curvature(
     curvature,
@@ -402,7 +390,6 @@ def clock_rate_from_curvature(
         rate = np.clip(rate, float(lo), float(hi))
     return rate
 
-
 def clock_rate_from_psi(
     psi,
     *,
@@ -419,7 +406,6 @@ def clock_rate_from_psi(
         mode=mode,
         clip=clip,
     )
-
 
 def gravity_source_from_psi(
     psi,
@@ -447,7 +433,6 @@ def gravity_source_from_psi(
     if subtract_mean:
         s = s - float(np.mean(s))
     return float(strength) * s
-
 
 def init_clock_rate_wave(
     clock_rate0,
@@ -483,7 +468,6 @@ def init_clock_rate_wave(
         N_prev = np.clip(N_prev, float(lo), float(hi))
     return N_prev
 
-
 def step_clock_rate_wave(
     clock_rate,
     clock_rate_prev,
@@ -512,7 +496,6 @@ def step_clock_rate_wave(
         lo, hi = clip
         N_next = np.clip(N_next, float(lo), float(hi))
     return N_next
-
 
 def init_coupled_gravity_matter(
     psi0,
@@ -563,7 +546,6 @@ def init_coupled_gravity_matter(
 
     v_half = init_phase_leapfrog(psi, dt, omega, kappa, clock_rate=clock_rate)
     return psi, v_half, clock_rate, clock_rate_prev
-
 
 def step_coupled_gravity_matter(
     psi,
@@ -626,11 +608,9 @@ def step_coupled_gravity_matter(
 
     return psi_next, v_half_next, clock_next, clock_rate
 
-
 def hamiltonian_total(psi, *, omega0=0.0, kappa=1.0):
     """Total Hamiltonian proxy matching H = Σ (ω|ψ|^2 + κ Σ |ψ_i-ψ_j|^2)."""
     return float(np.sum(omega0 * energy_density(psi) + kappa * curvature_proxy(psi)))
-
 
 def weighted_norm(psi, *, clock_rate):
     """Metric-weighted norm for lapse-coupled evolution.
