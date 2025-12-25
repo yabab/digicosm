@@ -34,20 +34,23 @@ def apply_hamiltonian(psi, omega, kappa, *, laplacian=laplacian_iso):
     return omega * psi + kappa * laplacian(psi)
 
 def init_phase_leapfrog(psi0, dt, omega, kappa, *, drive0=None, clock_rate=None, laplacian=laplacian_iso):
-    """Initialize leapfrog half-step storage for phase dynamics.
+    """Initialize second-order leapfrog for a Klein–Gordon–like complex field.
 
-    Stores v_{1/2} (imag part at half step) given ψ(0) = u0 + i v0.
-    If provided, `clock_rate` rescales the local proper-time step: dτ = dt * clock_rate.
+    Returns `psi_prev` representing ψ at t - dt given ψ(0)=psi0 and assuming
+    initial velocity ψ_dot(0)=0 (unless `drive0` provides an initial accel).
+    If `clock_rate` is provided it rescales the proper-time step: dτ = dt * clock_rate.
     """
-    u0 = np.real(psi0)
-    v0 = np.imag(psi0)
+    psi0 = np.array(psi0, dtype=np.complex128, copy=True)
     dt_eff = dt if clock_rate is None else dt * clock_rate
 
-    drive_r0 = 0.0 if drive0 is None else np.real(drive0)
-    Au0 = omega * u0 + kappa * laplacian(u0)
-    dvdt0 = -(Au0 + drive_r0)
-    v_half0 = v0 + 0.5 * dt_eff * dvdt0
-    return v_half0
+    drive0_arr = 0.0 if drive0 is None else np.asarray(drive0, dtype=np.complex128)
+
+    # psi_tt(0) = -H psi0 + drive0
+    Hpsi0 = apply_hamiltonian(psi0, omega, kappa, laplacian=laplacian)
+    psi_tt0 = -(Hpsi0) + drive0_arr
+
+    psi_prev = psi0 - 0.5 * (dt_eff ** 2) * psi_tt0
+    return psi_prev
 
 def init_phase_leapfrog_backreacting(
     psi0,
@@ -62,9 +65,10 @@ def init_phase_leapfrog_backreacting(
     curvature_clip=(1e-3, 1e3),
     laplacian=laplacian_iso,
 ):
-    """Initialize leapfrog for curvature-coupled time dilation.
+    """Initialize leapfrog when clock_rate depends on `psi` (backreaction).
 
-    The local clock_rate is computed from the initial field via curvature proxy.
+    Computes an initial local `clock_rate` from `psi0` and delegates to
+    `init_phase_leapfrog` to produce `psi_prev`.
     """
     if curvature_beta == 0.0:
         clock_rate0 = float(base_clock_rate)
@@ -88,7 +92,7 @@ def init_phase_leapfrog_backreacting(
 
 def step_phase_leapfrog(
     psi,
-    v_half,
+    psi_prev,
     dt,
     omega,
     kappa,
@@ -97,35 +101,28 @@ def step_phase_leapfrog(
     clock_rate=None,
     laplacian=laplacian_iso,
 ):
-    """One time-reversible leapfrog step for i ψdot = Hψ + drive.
+    """Second-order leapfrog step for ψ_tt = -H ψ + drive.
 
-    State:
-      ψ^n is stored as a complex field at integer steps.
-      v_half stores Im(ψ) at half steps.
-
-    Returns (psi_next, v_half_next).
+    `psi` is ψ^n and `psi_prev` is ψ^{n-1}. Returns (psi_next, psi) where
+    the second element is the new "prev" for the next step (keeps old API).
     """
-    u = np.real(psi)
+    psi = np.array(psi, dtype=np.complex128, copy=False)
+    psi_prev = np.array(psi_prev, dtype=np.complex128, copy=False)
+
     dt_eff = dt if clock_rate is None else dt * clock_rate
 
-    drive_r = 0.0 if drive is None else np.real(drive)
-    drive_i = 0.0 if drive is None else np.imag(drive)
+    drive_arr = 0.0 if drive is None else np.asarray(drive, dtype=np.complex128)
 
-    Av_half = omega * v_half + kappa * laplacian(v_half)
-    u_next = u + dt_eff * (Av_half + drive_i)
+    Hpsi = apply_hamiltonian(psi, omega, kappa, laplacian=laplacian)
+    psi_tt = -(Hpsi) + drive_arr
 
-    Au_next = omega * u_next + kappa * laplacian(u_next)
-    dvdt_next = -(Au_next + drive_r)
+    psi_next = 2.0 * psi - psi_prev + (dt_eff ** 2) * psi_tt
 
-    v_next = v_half + 0.5 * dt_eff * dvdt_next
-    v_half_next = v_half + dt_eff * dvdt_next
-
-    psi_next = u_next + 1j * v_next
-    return psi_next, v_half_next
+    return psi_next, psi
 
 def step_phase_leapfrog_backreacting(
     psi,
-    v_half,
+    psi_prev,
     dt,
     omega,
     kappa,
@@ -137,21 +134,17 @@ def step_phase_leapfrog_backreacting(
     curvature_clip=(1e-3, 1e3),
     laplacian=laplacian_iso,
 ):
-    """Curvature-coupled step with a simple predictor/corrector for clock_rate.
+    """Backreaction-aware second-order step using midpoint clock-rate estimate.
 
-    This treats time dilation as a local lapse: dτ = dt * clock_rate(psi).
-    For stability and reduced bias, we estimate a midpoint clock_rate by:
-      rate_n  = rate(psi^n)
-      psi*    = step(psi^n; rate_n)
-      rate_*  = rate(psi*)
-      rate_mid = 0.5 * (rate_n + rate_*)
-      psi^{n+1} = step(psi^n; rate_mid)
+    Predictor/corrector: evaluate rate from `psi`, step, re-evaluate, average rates,
+    and perform final step using midpoint rate. This mirrors the previous
+    first-order behavior but for the second-order integrator.
     """
     if curvature_beta == 0.0:
         rate_n = float(base_clock_rate)
         return step_phase_leapfrog(
             psi,
-            v_half,
+            psi_prev,
             dt,
             omega,
             kappa,
@@ -168,9 +161,9 @@ def step_phase_leapfrog_backreacting(
         clip=curvature_clip,
     )
 
-    psi_pred, v_half_pred = step_phase_leapfrog(
+    psi_pred, psi_prev_pred = step_phase_leapfrog(
         psi,
-        v_half,
+        psi_prev,
         dt,
         omega,
         kappa,
@@ -190,7 +183,7 @@ def step_phase_leapfrog_backreacting(
 
     return step_phase_leapfrog(
         psi,
-        v_half,
+        psi_prev,
         dt,
         omega,
         kappa,
@@ -229,9 +222,9 @@ def run_driven_phase_wave(
             drive0[y, x] += amp * np.exp(-1j * drive_omega * t0)
 
     if curvature_beta == 0.0:
-        v_half = init_phase_leapfrog(psi, dt, omega0, kappa, drive0=drive0, clock_rate=base_clock_rate)
+        psi_prev = init_phase_leapfrog(psi, dt, omega0, kappa, drive0=drive0, clock_rate=base_clock_rate)
     else:
-        v_half = init_phase_leapfrog_backreacting(
+        psi_prev = init_phase_leapfrog_backreacting(
             psi,
             dt,
             omega0,
@@ -252,9 +245,9 @@ def run_driven_phase_wave(
             for (y, x, amp) in sources:
                 drive[y, x] += amp * ph
 
-        psi, v_half = step_phase_leapfrog_backreacting(
+        psi, psi_prev = step_phase_leapfrog_backreacting(
             psi,
-            v_half,
+            psi_prev,
             dt,
             omega0,
             kappa,
@@ -300,9 +293,9 @@ def run_pulsed_drive_samples(
     sy, sx = source_pos
     drive0[sy, sx] = pulse_amp * np.exp(-0.5 * ((t0 - pulse_t0) / pulse_sigma) ** 2)
     if curvature_beta == 0.0:
-        v_half = init_phase_leapfrog(psi, dt, omega0, kappa, drive0=drive0, clock_rate=base_clock_rate)
+        psi_prev = init_phase_leapfrog(psi, dt, omega0, kappa, drive0=drive0, clock_rate=base_clock_rate)
     else:
-        v_half = init_phase_leapfrog_backreacting(
+        psi_prev = init_phase_leapfrog_backreacting(
             psi,
             dt,
             omega0,
@@ -319,9 +312,9 @@ def run_pulsed_drive_samples(
         t = n * dt
         drive = np.zeros_like(psi)
         drive[sy, sx] = pulse_amp * np.exp(-0.5 * ((t - pulse_t0) / pulse_sigma) ** 2)
-        psi, v_half = step_phase_leapfrog_backreacting(
+        psi, psi_prev = step_phase_leapfrog_backreacting(
             psi,
-            v_half,
+            psi_prev,
             dt,
             omega0,
             kappa,
@@ -519,7 +512,7 @@ def init_coupled_gravity_matter(
     - clock_rate evolves with a local wave equation (finite-speed gravity field)
     - psi evolves with local proper time: dτ = dt * clock_rate
 
-    Returns (psi, v_half, clock_rate, clock_rate_prev).
+    Returns (psi, psi_prev, clock_rate, clock_rate_prev).
     """
     psi = np.array(psi0, dtype=np.complex128, copy=True)
 
@@ -544,12 +537,12 @@ def init_coupled_gravity_matter(
         clip=gravity_clip,
     )
 
-    v_half = init_phase_leapfrog(psi, dt, omega, kappa, clock_rate=clock_rate)
-    return psi, v_half, clock_rate, clock_rate_prev
+    psi_prev = init_phase_leapfrog(psi, dt, omega, kappa, clock_rate=clock_rate)
+    return psi, psi_prev, clock_rate, clock_rate_prev
 
 def step_coupled_gravity_matter(
     psi,
-    v_half,
+    psi_prev,
     clock_rate,
     clock_rate_prev,
     dt,
@@ -596,9 +589,9 @@ def step_coupled_gravity_matter(
     )
 
     clock_mid = 0.5 * (clock_rate + clock_next)
-    psi_next, v_half_next = step_phase_leapfrog(
+    psi_next, psi_prev_next = step_phase_leapfrog(
         psi,
-        v_half,
+        psi_prev,
         dt,
         omega,
         kappa,
@@ -606,7 +599,7 @@ def step_coupled_gravity_matter(
         clock_rate=clock_mid,
     )
 
-    return psi_next, v_half_next, clock_next, clock_rate
+    return psi_next, psi_prev_next, clock_next, clock_rate
 
 def hamiltonian_total(psi, *, omega0=0.0, kappa=1.0):
     """Total Hamiltonian proxy matching H = Σ (ω|ψ|^2 + κ Σ |ψ_i-ψ_j|^2)."""

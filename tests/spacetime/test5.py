@@ -13,13 +13,13 @@ def test_kappa_scaling():
         psi = np.zeros((N, N), dtype=np.complex128)
         psi[center[0], center[1]] = 1.0 + 0.0j
 
-        v_half = init_phase_leapfrog(psi, dt, omega0, kappa)
+        psi_prev = init_phase_leapfrog(psi, dt, omega0, kappa)
 
         radial_cache = precompute_radial_reduction(psi.shape, center)
 
         fronts = []
         for t in range(steps):
-            psi, v_half = step_phase_leapfrog(psi, v_half, dt, omega0, kappa)
+            psi, psi_prev = step_phase_leapfrog(psi, psi_prev, dt, omega0, kappa)
             if t % 10 == 0:
                 intensity = np.abs(psi) ** 2
                 r = detect_front_outermost(intensity, radial_cache)
@@ -48,7 +48,8 @@ def test_kappa_scaling():
 
     ratios = np.array(speeds) / speeds[1]
     print("speed ratios:", ratios)
-    ok = np.allclose(ratios, [0.5, 1.0, 2.0], rtol=0.3)
+    target = np.array([np.sqrt(0.5), 1.0, np.sqrt(2.0)])
+    ok = np.allclose(ratios, target, rtol=0.3)
     if ok:
         print("✅ PASS: c-scaling roughly matches")
     else:

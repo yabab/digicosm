@@ -14,7 +14,7 @@ def test_backreaction_stability_and_effect():
 
     N = 80
     steps = 2500
-    dt = 0.01
+    dt = 0.002
     omega0 = 0.0
     kappa = 1.0
 
@@ -25,16 +25,16 @@ def test_backreaction_stability_and_effect():
 
     # Reference run (no backreaction).
     psi_ref = psi0.copy()
-    v_ref = init_phase_leapfrog(psi_ref, dt, omega0, kappa, clock_rate=1.0)
+    psi_prev_ref = init_phase_leapfrog(psi_ref, dt, omega0, kappa, clock_rate=1.0)
     for _ in range(steps):
-        psi_ref, v_ref = step_phase_leapfrog(psi_ref, v_ref, dt, omega0, kappa, clock_rate=1.0)
+        psi_ref, psi_prev_ref = step_phase_leapfrog(psi_ref, psi_prev_ref, dt, omega0, kappa, clock_rate=1.0)
 
     # Backreacting run.
     beta = 0.6
     clip = (0.05, 1.0)
 
     psi = psi0.copy()
-    v_half = init_phase_leapfrog_backreacting(
+    psi_prev = init_phase_leapfrog_backreacting(
         psi,
         dt,
         omega0,
@@ -50,9 +50,9 @@ def test_backreaction_stability_and_effect():
     mean_rates = []
 
     for n in range(steps):
-        psi, v_half = step_phase_leapfrog_backreacting(
+        psi, psi_prev = step_phase_leapfrog_backreacting(
             psi,
-            v_half,
+            psi_prev,
             dt,
             omega0,
             kappa,

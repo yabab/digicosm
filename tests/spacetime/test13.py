@@ -11,8 +11,8 @@ def test_coupled_gravity_delayed_frequency_shift():
     # until the gravity wave reaches it.
 
     N = 121
-    dt = 0.02
-    steps = 2600  # total t=52.0
+    dt = 0.002
+    steps = 26000  # total t=52.0
 
     c_g = 1.0
     r_probe = 35
@@ -46,7 +46,7 @@ def test_coupled_gravity_delayed_frequency_shift():
     omega[probe] = Omega
     kappa = 0.0
 
-    psi, v_half, clock, clock_prev = init_coupled_gravity_matter(
+    psi, psi_prev, clock, clock_prev = init_coupled_gravity_matter(
         psi0,
         dt,
         omega,
@@ -63,15 +63,18 @@ def test_coupled_gravity_delayed_frequency_shift():
         gravity_clip=(0.05, 2.0),
     )
 
+    # Seed a rotating initial condition at the probe for clear frequency estimation.
+    psi_prev[probe] = psi[probe] * np.exp(1j * np.sqrt(Omega) * dt * float(clock[probe]))
+
     times = []
     z_probe = []
     N_probe = []
 
     for n in range(steps):
         t = n * dt
-        psi, v_half, clock, clock_prev = step_coupled_gravity_matter(
+        psi, psi_prev, clock, clock_prev = step_coupled_gravity_matter(
             psi,
-            v_half,
+            psi_prev,
             clock,
             clock_prev,
             dt,
@@ -112,9 +115,10 @@ def test_coupled_gravity_delayed_frequency_shift():
     N_early = float(np.mean(N_probe[early]))
     N_late = float(np.mean(N_probe[late]))
 
-    # Convention: phase slope is approximately -Omega * N
-    w_early_exp = -Omega * N_early
-    w_late_exp = -Omega * N_late
+    # For second-order dynamics ψ_tt = -Ω ψ (kappa=0), the observed angular
+    # frequency magnitude scales as sqrt(Ω) * N (clock_rate). Use that mapping.
+    w_early_exp = -np.sqrt(Omega) * N_early
+    w_late_exp = -np.sqrt(Omega) * N_late
 
     print(f"N_probe early={N_early:.6f}, late={N_late:.6f}")
     print(f"ω_probe early: hat={w_early:.4f}, exp~={w_early_exp:.4f}")

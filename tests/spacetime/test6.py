@@ -11,10 +11,10 @@ def test_cardinal_vs_diagonal():
     psi = np.zeros((N, N), dtype=np.complex128)
     center = N // 2
     psi[center, center] = 1.0 + 0.0j
-    v_half = init_phase_leapfrog(psi, dt, omega0, kappa)
+    psi_prev = init_phase_leapfrog(psi, dt, omega0, kappa)
 
     for _ in range(steps):
-        psi, v_half = step_phase_leapfrog(psi, v_half, dt, omega0, kappa)
+        psi, psi_prev = step_phase_leapfrog(psi, psi_prev, dt, omega0, kappa)
 
     I = np.abs(psi) ** 2
     result = cardinal_diagonal_peak_delta(I, (center, center))

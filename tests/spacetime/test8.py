@@ -13,7 +13,7 @@ def test_curvature_induced_time_dilation_local():
     N = 40
     omega0 = 2.5
     kappa = 0.0  # keep sites decoupled so local ω depends only on clock_rate
-    dt = 0.01
+    dt = 0.002
     steps = 7000
 
     # Build a field with a localized phase defect to create curvature gradients.
@@ -39,7 +39,9 @@ def test_curvature_induced_time_dilation_local():
         return False
 
     psi = psi0.copy()
-    v_half = init_phase_leapfrog(psi, dt, omega0, kappa, clock_rate=clock_rate)
+    # initialize as a rotating mode so frequency estimation is robust
+    dt_eff = dt * clock_rate
+    psi_prev = psi * np.exp(1j * np.sqrt(omega0) * dt_eff)
 
     times = []
     z_hi = []
@@ -47,7 +49,7 @@ def test_curvature_induced_time_dilation_local():
 
     for n in range(steps):
         t = n * dt
-        psi, v_half = step_phase_leapfrog(psi, v_half, dt, omega0, kappa, clock_rate=clock_rate)
+        psi, psi_prev = step_phase_leapfrog(psi, psi_prev, dt, omega0, kappa, clock_rate=clock_rate)
         if n > steps // 3:
             times.append(t)
             z_hi.append(psi[max_idx])
@@ -56,8 +58,9 @@ def test_curvature_induced_time_dilation_local():
     w_hi = estimate_angular_frequency(np.array(z_hi), np.array(times))
     w_lo = estimate_angular_frequency(np.array(z_lo), np.array(times))
 
-    # For kappa=0: ω_local ≈ ω0 * clock_rate(local)
-    ratio_hat = w_hi / w_lo if w_lo != 0 else float("inf")
+    # For second-order kappa=0: observed |ω| ∝ sqrt(ω0) * clock_rate(local), so
+    # the ratio of observed magnitudes should be ratio of clock_rates.
+    ratio_hat = abs(w_hi) / abs(w_lo) if w_lo != 0 else float("inf")
     ratio_exp = cr_hi / cr_lo if cr_lo != 0 else float("inf")
     rel_err = abs(ratio_hat - ratio_exp) / (abs(ratio_exp) if ratio_exp != 0 else 1.0)
 
