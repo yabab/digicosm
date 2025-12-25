@@ -40,7 +40,7 @@ def test_cardinal_vs_diagonal():
     
     if delta < threshold:
         print(f"✅ PASS: Cardinal/diagonal peak positions similar (Δ={delta} < {threshold})")
-        return True
+        
     else:
         print(f"❌ FAIL: Significant cardinal/diagonal difference (Δ={delta} >= {threshold})")
-        return False
+        

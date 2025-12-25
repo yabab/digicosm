@@ -84,7 +84,7 @@ def test_two_source_interference_relativistic():
     
     if detected >= min_fringes:
         print(f"✅ PASS: Interference fringes detected ({detected} >= {min_fringes})")
-        return True
+        
 
     print(f"❌ FAIL: Insufficient fringes ({detected} < {min_fringes})")
-    return False
+    

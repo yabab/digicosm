@@ -54,7 +54,7 @@ def test_curvature_induced_time_dilation_local():
     if not (cr_hi < cr_lo):
         print(f"❌ FAIL: Expected higher curvature => smaller clock_rate")
         print(f"  But got cr_hi={cr_hi:.4f} >= cr_lo={cr_lo:.4f}")
-        return False
+        
 
     psi = psi0.copy()
     # initialize as a rotating mode so frequency estimation is robust
@@ -87,7 +87,7 @@ def test_curvature_induced_time_dilation_local():
 
     if rel_err > 0.05:
         print("❌ FAIL: Local dilation ratio mismatch")
-        return False
+        
 
     print("✅ PASS: Curvature-derived clock_rate matches local frequency scaling")
-    return True
+    

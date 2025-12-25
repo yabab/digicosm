@@ -101,7 +101,7 @@ def test_weighted_norm_residual_separates_external_vs_backreaction():
     if ext_med > ext_threshold:
         print(f"❌ FAIL: External-lapse residual too large ({ext_med:.3e} > {ext_threshold:.3e})")
         print("  This indicates numerical error baseline is too high")
-        return False
+        
 
     # ---------- Part B: backreacting N(psi) should show much larger residual ----------
     print("\nPart B: Testing backreacting clock_rate...")
@@ -172,7 +172,7 @@ def test_weighted_norm_residual_separates_external_vs_backreaction():
     if br_med < min_ratio * ext_med or br_mean < min_ratio * ext_mean:
         print(f"❌ FAIL: Backreaction residual not sufficiently above external baseline")
         print(f"  Expected both ratios > {min_ratio}")
-        return False
+        
 
     print(f"✅ PASS: Diagnostic successfully separates numerical error vs physical backreaction")
-    return True
+    

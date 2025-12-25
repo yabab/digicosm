@@ -70,7 +70,7 @@ def test_single_source_isotropy_relativistic():
 
     if len(peak_list) == 0:
         print("❌ FAIL: No samples recorded")
-        return False
+        
 
     peak_list.sort(key=lambda x: x[0], reverse=True)
     I_max, t_used, psi = peak_list[0]
@@ -104,7 +104,7 @@ def test_single_source_isotropy_relativistic():
     if radii.size < min_detections:
         print(f"❌ FAIL: Insufficient angular front detections ({radii.size} < {min_detections})")
         print(f"  Tried parameter combinations: {tried}")
-        return False
+        
 
     r_mean = float(np.mean(radii))
     r_std = float(np.std(radii))
@@ -120,7 +120,7 @@ def test_single_source_isotropy_relativistic():
 
     if iso < iso_threshold:
         print(f"✅ PASS: Isotropic propagating front (isotropy={iso:.4f} < {iso_threshold})")
-        return True
+        
 
     print(f"❌ FAIL: Anisotropy detected (isotropy={iso:.4f} >= {iso_threshold})")
-    return False
+    

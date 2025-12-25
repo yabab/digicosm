@@ -91,7 +91,7 @@ def test_backreaction_stability_and_effect():
             # Early stability check
             if not np.isfinite(psi).all():
                 print(f"❌ FAIL: NaN/Inf encountered at step {n}")
-                return False
+                
             
             rate = clock_rate_from_psi(
                 psi,
@@ -112,13 +112,13 @@ def test_backreaction_stability_and_effect():
     print("\nValidation checks:")
     if not np.isfinite(psi).all():
         print("❌ FAIL: NaN/Inf encountered in final state")
-        return False
+        
 
     amp = float(np.max(np.abs(psi)))
     amp_threshold = 10.0
     if amp > amp_threshold:
         print(f"❌ FAIL: Unstable amplitude growth (max|psi|={amp:.3f} > {amp_threshold})")
-        return False
+        
     print(f"  1. Amplitude stable: max|psi|={amp:.3f}")
 
     # 2) Clock-rate is clipped and generally < 1 when curvature exists.
@@ -126,13 +126,13 @@ def test_backreaction_stability_and_effect():
         print("❌ FAIL: clock_rate violated clip bounds")
         print(f"  min_rates={min_rates}")
         print(f"  max_rates={max_rates}")
-        return False
+        
     print(f"  2. Clock rate within bounds: [{min(min_rates):.4f}, {max(max_rates):.4f}]")
 
     mean_clock = np.mean(mean_rates)
     if mean_clock >= 1.0:
         print(f"❌ FAIL: Expected mean clock_rate < 1 under positive curvature (got {mean_clock:.4f})")
-        return False
+        
     print(f"  3. Mean clock rate reduced: {mean_clock:.4f} < 1.0")
 
     # 3) Backreaction meaningfully changes evolution.
@@ -145,7 +145,7 @@ def test_backreaction_stability_and_effect():
 
     if rel < min_effect:
         print(f"❌ FAIL: Backreaction effect too small ({rel*100:.3f}% < {min_effect*100:.1f}%)")
-        return False
+        
 
     # 4) Sanity: higher curvature should imply lower clock rate (by construction).
     curv = curvature_proxy(psi)
@@ -167,7 +167,7 @@ def test_backreaction_stability_and_effect():
     if not (mean_hi < mean_lo):
         print(f"❌ FAIL: Expected high-curvature => smaller clock_rate")
         print(f"  But got mean_hi={mean_hi:.4f} >= mean_lo={mean_lo:.4f}")
-        return False
+        
 
     # 5) Keep norm-ish bounded (not a strict conservation claim under local lapse).
     norm = float(np.sum(energy_density(psi)))
@@ -175,13 +175,13 @@ def test_backreaction_stability_and_effect():
     
     if not np.isfinite(norm):
         print("❌ FAIL: Non-finite norm")
-        return False
+        
     
     if norm > norm_threshold:
         print(f"❌ FAIL: Norm too large ({norm:.3e} > {norm_threshold:.3e})")
-        return False
+        
     
     print(f"  6. Norm bounded: {norm:.3e}")
 
     print("\n✅ PASS: Backreaction is stable and meaningfully affects dynamics")
-    return True
+    

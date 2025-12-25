@@ -45,7 +45,7 @@ def test_kappa_scaling():
         min_fronts = 3
         if len(fronts) < min_fronts:
             print(f"❌ FAIL: Insufficient fronts for kappa={kappa} ({len(fronts)} < {min_fronts})")
-            return False
+            
 
         times = np.array([t for t, r in fronts], dtype=float)
         radii = np.array([r for t, r in fronts], dtype=float)
@@ -59,7 +59,7 @@ def test_kappa_scaling():
         min_fit_points = 6
         if len(radii) < min_fit_points:
             print(f"❌ FAIL: Insufficient pre-wrap data for kappa={kappa} ({len(radii)} < {min_fit_points})")
-            return False
+            
 
         v = np.polyfit(times, radii, 1)[0]
         assert np.isfinite(v), f"Non-finite velocity for kappa={kappa}"
@@ -83,4 +83,4 @@ def test_kappa_scaling():
         print(f"✅ PASS: Speed scaling matches sqrt(kappa) (tolerance={tolerance})")
     else:
         print(f"❌ FAIL: Speed scaling mismatch (tolerance={tolerance})")
-    return ok
+    

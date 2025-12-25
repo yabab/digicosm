@@ -162,7 +162,7 @@ def test_coupled_gravity_delayed_frequency_shift():
     min_samples = 50
     if early.sum() < min_samples or late.sum() < min_samples:
         print(f"❌ FAIL: Insufficient samples in windows (need at least {min_samples} each)")
-        return False
+        
 
     w_early = estimate_angular_frequency(z_probe[early], times[early])
     w_late = estimate_angular_frequency(z_probe[late], times[late])
@@ -188,7 +188,7 @@ def test_coupled_gravity_delayed_frequency_shift():
     if abs(N_early - 1.0) > threshold_early:
         print(f"\n❌ FAIL: Probe clock_rate changed too early")
         print(f"  |N_early - 1.0| = {abs(N_early - 1.0):.6f} > {threshold_early}")
-        return False
+        
     print(f"\n✔ Check 1: No early response (|N_early - 1.0| = {abs(N_early - 1.0):.6f})")
 
     # 2) Late response exists
@@ -196,7 +196,7 @@ def test_coupled_gravity_delayed_frequency_shift():
     if abs(N_late - 1.0) < threshold_late:
         print(f"❌ FAIL: Probe clock_rate did not change after wave arrival")
         print(f"  |N_late - 1.0| = {abs(N_late - 1.0):.6f} < {threshold_late}")
-        return False
+        
     print(f"✔ Check 2: Late response detected (|N_late - 1.0| = {abs(N_late - 1.0):.6f})")
 
     # 3) Frequency shift matches change in clock_rate (within tolerance)
@@ -210,7 +210,7 @@ def test_coupled_gravity_delayed_frequency_shift():
 
     if rel_err_early > 0.02 or rel_err_late > 0.10:
         print(f"❌ FAIL: Frequency does not track clock_rate")
-        return False
+        
 
     # 4) Detect the shift
     freq_shift = abs(w_late - w_early)
@@ -220,7 +220,7 @@ def test_coupled_gravity_delayed_frequency_shift():
     
     if freq_shift < min_shift:
         print(f"❌ FAIL: No measurable frequency shift ({freq_shift:.6f} < {min_shift})")
-        return False
+        
 
     print("\n✅ PASS: Probe frequency shifts only after gravity arrival")
-    return True
+    

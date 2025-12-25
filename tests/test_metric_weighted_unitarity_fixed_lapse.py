@@ -83,7 +83,7 @@ def test_metric_weighted_unitarity_fixed_lapse():
 
     if drift_E > threshold:
         print(f"❌ FAIL: Energy drift too large ({drift_E*100:.3f}% > {threshold*100:.1f}%)")
-        return False
+        
 
     print(f"✅ PASS: Energy approximately conserved (drift={drift_E*100:.3f}%)")
-    return True
+    

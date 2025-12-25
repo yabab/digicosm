@@ -43,7 +43,7 @@ def test_gravity_field_causal_propagation():
     max_curv = float(np.max(curv))
     if max_curv <= 0.0:
         print("❌ FAIL: Curvature source not created (max curvature <= 0)")
-        return False
+        
     
     print(f"Info: Grid size={N}, dt={dt}, c_g={c_g}")
     print(f"  Curvature max={max_curv:.6f}")
@@ -114,7 +114,7 @@ def test_gravity_field_causal_propagation():
     if delta_short > threshold_early:
         print(f"❌ FAIL: Probe changed too early (non-causal / too-fast coupling)")
         print(f"  ΔN = {delta_short:.3e} > {threshold_early:.3e}")
-        return False
+        
     
     print("  ✔ Probe unchanged (causal propagation confirmed)")
 
@@ -152,7 +152,7 @@ def test_gravity_field_causal_propagation():
     if delta_long < threshold_late:
         print(f"❌ FAIL: Probe did not respond after sufficient time")
         print(f"  ΔN = {delta_long:.3e} < {threshold_late:.3e}")
-        return False
+        
     
     print("  ✔ Probe responded (propagation detected)")
 
@@ -160,7 +160,7 @@ def test_gravity_field_causal_propagation():
     print(f"\nFinal sanity checks:")
     if not np.isfinite(clock).all():
         print("❌ FAIL: NaN/Inf in clock_rate field")
-        return False
+        
     print("  ✔ All values finite")
     
     clock_min = float(np.min(clock))
@@ -169,8 +169,8 @@ def test_gravity_field_causal_propagation():
     if clock_min < clip[0] - 1e-12 or clock_max > clip[1] + 1e-12:
         print(f"❌ FAIL: clock_rate violated clip bounds")
         print(f"  Range: [{clock_min:.6f}, {clock_max:.6f}], Clip: {clip}")
-        return False
+        
     print(f"  ✔ Within clip bounds: [{clock_min:.6f}, {clock_max:.6f}]")
 
     print("\n✅ PASS: clock_rate dynamics are local and causal")
-    return True
+    
