@@ -63,9 +63,9 @@ def test_energy_conservation():
     print(f"  Energy drift = {E_drift*100:.4f}% (threshold: {threshold*100:.1f}%)")
     print(f"  Min energy: {min(Es):.6e}, Max energy: {max(Es):.6e}")
 
-    if E_drift < threshold:
-        print(f"✅ PASS: Energy approximately conserved (drift={E_drift*100:.4f}%)")
-        
-
-    print(f"❌ FAIL: Energy drift too large ({E_drift*100:.4f}% >= {threshold*100:.1f}%)")
+    # Assert energy drift is within acceptable threshold
+    assert E_drift < threshold, (
+        f"Energy drift too large: {E_drift*100:.4f}% >= {threshold*100:.1f}% "
+        f"(E0={E0:.6e}, E1={E1:.6e}, min={min(Es):.6e}, max={max(Es):.6e})"
+    )
     
